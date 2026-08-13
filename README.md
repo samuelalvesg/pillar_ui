@@ -1,39 +1,55 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# pillar_ui
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
+Componentes de UI Flutter compartilhados entre os apps do ecossistema
+`pillar_*` (Symmetris e outros projetos, ex. `soundcraft_ui_app`) -
+navegação responsiva, tema padrão e widgets utilitários reusados em
+mais de um app.
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
--->
+## Conteúdo
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+### Layouts (`lib/src/layouts/`)
 
-## Features
+- **`AdaptiveNavigationScaffold`** - shell de navegação responsivo:
+  `NavigationRail` lateral em paisagem, `ScrollableBottomNavBar`
+  rolável embaixo em retrato, com transição animada entre os dois.
+  Aceita `titleWidget` (`Widget?`, vence sobre `title` string) pra
+  plugar uma barra de status rica e persistente acima de todas as
+  abas.
+- **`ShellNavigationScaffold`** - mesmo padrão visual, mas integrado
+  diretamente ao `StatefulShellRoute` do GoRouter (`navigationShell`
+  como corpo gerenciado pelo roteador em vez de lista de telas).
+- **`ScrollableBottomNavBar`** - barra de navegação inferior rolável
+  horizontalmente (substitui o `NavigationBar` padrão do Material, que
+  divide a largura igualmente entre todos os itens e fica ilegível
+  com muitas abas).
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
+### Temas (`lib/src/themes/`)
 
-## Getting started
+- `app_colors.dart`/`app_text_theme.dart`/`app_theme.dart` - paleta e
+  tipografia padrão compartilhadas.
 
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+### Widgets (`lib/src/widgets/`)
 
-## Usage
+- **`ErrorContainerWidget`** - card de erro padronizado.
+- **`DeferredWidget`** - wrapper pra carregamento tardio de telas
+  pesadas (`deferred as`), reduz o bundle inicial.
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
+## Uso
 
-```dart
-const like = 'sample';
+Dependência git (sem publicação no pub.dev ainda):
+
+```yaml
+dependencies:
+  pillar_ui:
+    git:
+      url: https://github.com/samuelalvesg/pillar_ui.git
+      ref: main
 ```
 
-## Additional information
+```dart
+import 'package:pillar_ui/pillar_ui.dart';
+```
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+## Licença
+
+[MIT](LICENSE).

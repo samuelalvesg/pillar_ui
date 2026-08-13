@@ -1,7 +1,7 @@
 name: pillar_ui
-description: "A new Flutter package project."
+description: "Componentes de UI Flutter compartilhados entre os apps do ecossistema pillar_* (navegação responsiva, tema padrão, widgets utilitários)."
 version: 0.0.1
-homepage:
+homepage: https://github.com/samuelalvesg/pillar_ui
 
 environment:
   sdk: ^3.11.0
