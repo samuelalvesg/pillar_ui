@@ -56,6 +56,13 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   final String? title;
   final List<Widget>? actions;
 
+  /// Título rico (widget qualquer, ex. uma barra de status persistente
+  /// acima de todas as abas) - vence sobre [title] quando os dois são
+  /// passados. Aditivo (não muda o tipo de [title] existente) - nenhum
+  /// outro consumidor deste pacote no monorepo passava [title] até
+  /// agora, mas aditivo continua sendo o caminho mais barato.
+  final Widget? titleWidget;
+
   const AdaptiveNavigationScaffold({
     super.key,
     required this.items,
@@ -64,7 +71,19 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.title,
     this.actions,
+    this.titleWidget,
   });
+
+  /// Compartilhado entre paisagem/retrato (antes duplicado, 1 `AppBar`
+  /// por método) - [titleWidget] vence sobre [title] quando os dois
+  /// existem.
+  AppBar? _buildAppBar() {
+    if (titleWidget == null && title == null && actions == null) return null;
+    return AppBar(
+      title: titleWidget ?? (title != null ? Text(title!) : null),
+      actions: actions,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,12 +104,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   Widget _buildLandscapeLayout(BuildContext context) {
     return Scaffold(
       key: const ValueKey('landscape'),
-      appBar: title != null || actions != null
-          ? AppBar(
-              title: title != null ? Text(title!) : null,
-              actions: actions,
-            )
-          : null,
+      appBar: _buildAppBar(),
       body: Row(
         children: [
           // Mesmo achado/fix de `ShellNavigationScaffold` (2026-08-07) -
@@ -139,12 +153,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   Widget _buildPortraitLayout(BuildContext context) {
     return Scaffold(
       key: const ValueKey('portrait'),
-      appBar: title != null || actions != null
-          ? AppBar(
-              title: title != null ? Text(title!) : null,
-              actions: actions,
-            )
-          : null,
+      appBar: _buildAppBar(),
       body: _buildAnimatedContent(),
       bottomNavigationBar: ScrollableBottomNavBar(
         items: items,
