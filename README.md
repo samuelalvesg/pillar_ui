@@ -1,7 +1,7 @@
 # pillar_ui
 
 Componentes de UI Flutter compartilhados entre os apps do ecossistema
-`pillar_*` (Symmetris e outros projetos, ex. `soundcraft_ui_app`) -
+`pillar_*` (Symmetris e outros projetos, ex. `sound_mixer_ui_app`) -
 navegação responsiva, tema padrão e widgets utilitários reusados em
 mais de um app.
 
