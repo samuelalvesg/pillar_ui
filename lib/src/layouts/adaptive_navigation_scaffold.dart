@@ -63,6 +63,22 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// agora, mas aditivo continua sendo o caminho mais barato.
   final Widget? titleWidget;
 
+  /// `true` remove a `AppBar` por completo, nos 2 modos (2026-08-14,
+  /// achado real do usuário: `AppBar` + barra de navegação são 2
+  /// faixas fixas empilhadas comendo altura - com [navLeading]
+  /// preenchendo o mesmo papel DENTRO da própria navegação, a `AppBar`
+  /// fica redundante). Default `false` preserva 100% o comportamento
+  /// atual pra quem não passa este param.
+  final bool hideAppBar;
+
+  /// Conteúdo extra ANTES dos itens de navegação - em paisagem vira o
+  /// `leading:` nativo do `NavigationRail` (topo do rail, acima dos
+  /// ícones); em retrato vira a 1ª coluna fixa do
+  /// [ScrollableBottomNavBar] (antes dos itens). Pensado pra
+  /// acompanhar [hideAppBar]`: true` (substitui o que antes ficava em
+  /// [titleWidget]), mas funciona independente disso também.
+  final Widget? navLeading;
+
   const AdaptiveNavigationScaffold({
     super.key,
     required this.items,
@@ -72,12 +88,15 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
     this.title,
     this.actions,
     this.titleWidget,
+    this.hideAppBar = false,
+    this.navLeading,
   });
 
   /// Compartilhado entre paisagem/retrato (antes duplicado, 1 `AppBar`
   /// por método) - [titleWidget] vence sobre [title] quando os dois
   /// existem.
   AppBar? _buildAppBar() {
+    if (hideAppBar) return null;
     if (titleWidget == null && title == null && actions == null) return null;
     return AppBar(
       title: titleWidget ?? (title != null ? Text(title!) : null),
@@ -122,6 +141,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
                   child: NavigationRail(
                     selectedIndex: currentIndex,
                     onDestinationSelected: onIndexChanged,
+                    leading: navLeading,
                     labelType: NavigationRailLabelType.all,
                     // Ativa o visual Material 3 no Rail
                     useIndicator: true,
@@ -159,6 +179,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
         items: items,
         currentIndex: currentIndex,
         onIndexChanged: onIndexChanged,
+        leading: navLeading,
       ),
       floatingActionButton: floatingActionButton,
     );
@@ -298,11 +319,17 @@ class ScrollableBottomNavBar extends StatefulWidget {
     required this.items,
     required this.currentIndex,
     required this.onIndexChanged,
+    this.leading,
   });
 
   final List<AdaptiveNavigationItem> items;
   final int currentIndex;
   final ValueChanged<int> onIndexChanged;
+
+  /// Conteúdo extra fixo ANTES dos itens (2026-08-14) - mesma altura
+  /// da barra (`_alturaBarra`), largura tipo [_larguraItem]. `null`
+  /// (default) não muda nada do layout existente.
+  final Widget? leading;
 
   static const double _alturaBarra = 64;
   static const double _larguraItem = 84;
@@ -361,9 +388,16 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final n = widget.items.length;
+              // Largura do `leading` reservada ANTES de dividir entre os
+              // itens (2026-08-14) - senão ele "roubaria" espaço que os
+              // cálculos abaixo assumem ser só dos itens.
+              final larguraLeading =
+                  widget.leading != null ? ScrollableBottomNavBar._larguraItem : 0.0;
+              final larguraDisponivel =
+                  (constraints.maxWidth - larguraLeading).clamp(0.0, double.infinity);
               final larguraPorItem = n == 0
-                  ? constraints.maxWidth
-                  : constraints.maxWidth / n;
+                  ? larguraDisponivel
+                  : larguraDisponivel / n;
 
               // Cabe tudo com texto - estica preenchendo a tela (achado
               // real, 2026-07-27: pedido do usuário pra não ficar sempre
@@ -371,6 +405,7 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
               if (larguraPorItem >= ScrollableBottomNavBar._larguraItem) {
                 return Row(
                   children: [
+                    if (widget.leading != null) _buildLeading(),
                     for (var i = 0; i < n; i++)
                       Expanded(
                         child: _buildItem(
@@ -391,6 +426,7 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
                   ScrollableBottomNavBar._larguraItemSoIcone) {
                 return Row(
                   children: [
+                    if (widget.leading != null) _buildLeading(),
                     for (var i = 0; i < n; i++)
                       Expanded(
                         child: _buildItem(
@@ -412,37 +448,46 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
               // arrastar clicando, não a rodinha; sem isso a rodinha do
               // mouse simplesmente não faz nada numa `ListView`/
               // `SingleChildScrollView` horizontal.
-              return Listener(
-                onPointerSignal: (event) {
-                  if (event is! PointerScrollEvent) return;
-                  if (!_scrollController.hasClients) return;
-                  final alvo = (_scrollController.offset + event.scrollDelta.dy)
-                      .clamp(0.0, _scrollController.position.maxScrollExtent);
-                  _scrollController.jumpTo(alvo);
-                },
-                child: ScrollConfiguration(
-                  behavior: _MouseDragScrollBehavior(),
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (var i = 0; i < n; i++)
-                          SizedBox(
-                            width: ScrollableBottomNavBar._larguraItem,
-                            child: _buildItem(
-                              context,
-                              widget.items[i],
-                              i == widget.currentIndex,
-                              () => widget.onIndexChanged(i),
-                              mostrarTexto: true,
-                            ),
+              // `leading` fica FORA do `SingleChildScrollView` (fixo, não
+              // rola junto com os itens) - `Expanded` só na parte rolável.
+              return Row(
+                children: [
+                  if (widget.leading != null) _buildLeading(),
+                  Expanded(
+                    child: Listener(
+                      onPointerSignal: (event) {
+                        if (event is! PointerScrollEvent) return;
+                        if (!_scrollController.hasClients) return;
+                        final alvo = (_scrollController.offset + event.scrollDelta.dy)
+                            .clamp(0.0, _scrollController.position.maxScrollExtent);
+                        _scrollController.jumpTo(alvo);
+                      },
+                      child: ScrollConfiguration(
+                        behavior: _MouseDragScrollBehavior(),
+                        child: SingleChildScrollView(
+                          controller: _scrollController,
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (var i = 0; i < n; i++)
+                                SizedBox(
+                                  width: ScrollableBottomNavBar._larguraItem,
+                                  child: _buildItem(
+                                    context,
+                                    widget.items[i],
+                                    i == widget.currentIndex,
+                                    () => widget.onIndexChanged(i),
+                                    mostrarTexto: true,
+                                  ),
+                                ),
+                            ],
                           ),
-                      ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               );
             },
           ),
@@ -450,6 +495,12 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
       ),
     );
   }
+
+  Widget _buildLeading() => SizedBox(
+    width: ScrollableBottomNavBar._larguraItem,
+    height: ScrollableBottomNavBar._alturaBarra,
+    child: widget.leading,
+  );
 
   Widget _buildItem(
     BuildContext context,
