@@ -38,7 +38,11 @@ class CollapsibleEdgeDrawer extends StatelessWidget {
     required this.child,
     this.side = DrawerSide.left,
     this.width = 200,
-    this.tabWidth = 20,
+    // 40 (não 20) - achado real do usuário (2026-08-14): "sleeves são
+    // muito pequenas pra serem clicadas, ou touch" - alvo de toque
+    // mínimo recomendado (~44px Material/iOS), 20px ficava bem abaixo
+    // disso.
+    this.tabWidth = 40,
     this.showDivider = true,
     this.collapseTabKey,
   });
