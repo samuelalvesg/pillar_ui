@@ -27,4 +27,5 @@ export './src/themes/app_text_theme.dart';
 
 export './src/widgets/deferred_widget.dart';
 export './src/widgets/error_container_widget.dart';
+export './src/widgets/collapsible_edge_drawer.dart';
 export './src/layouts/adaptive_navigation_scaffold.dart';
