@@ -1,22 +1,22 @@
 /// ==============================================
 /// Symmetris - Plataforma Multiutilidades
 /// ==============================================
-/// 
+///
 /// Arquivo: adaptive_navigation_scaffold.dart
 /// Módulo: Packages / UI
-/// Descrição: 
-/// 
+/// Descrição:
+///
 /// Autor: Equipe Symmetris
 /// Criado: 25/04/2026
 /// Última Modificação: 25/04/2026
-/// 
+///
 /// Dependências:
-/// 
+///
 /// Premissas:
-///   ✅ 
-/// 
+///   ✅
+///
 /// Edge Cases Conhecidos:
-///   ⚠️ 
+///   ⚠️
 /// ==============================================
 
 import 'package:flutter/gestures.dart';
@@ -104,84 +104,112 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
     );
   }
 
+  static const _duracaoTransicaoChrome = Duration(milliseconds: 300);
+
+  /// Achado real do usuário (2026-08-17): "troco a orientação -> clico
+  /// em voltar, da erro sem log" - stack real capturado: "There are
+  /// multiple heroes that share the same tag" (ex. FAB de `PaScreen`).
+  /// Causa raiz: a versão antiga envolvia o `Scaffold` INTEIRO (rail/
+  /// bottom nav E o conteúdo do item ativo) num `AnimatedSwitcher` -
+  /// durante o crossfade de 500ms as 2 árvores (saindo E entrando)
+  /// ficavam montadas AO MESMO TEMPO, cada 1 com sua PRÓPRIA cópia de
+  /// `items[currentIndex].screen` - qualquer `Hero`/`FloatingAction
+  /// Button` de tag fixa dentro do item ativo duplicava, travando o
+  /// controller de Hero do `Navigator` (o "voltar" parava de responder
+  /// depois, sem crash de build visível - erro de scheduler).
+  ///
+  /// Mesmo bug que `ShellNavigationScaffold` (classe irmã, MESMO
+  /// arquivo) já documentava e evitava desde 2026-08-07 (ver comentário
+  /// dela) - nunca foi aplicado de volta aqui. Fix: reusa o MESMO
+  /// padrão - o CONTEÚDO (`_buildAnimatedContent()`) fica montado 1 VEZ
+  /// SÓ, dentro de 1 `Scaffold` único; só o "chrome" ao redor (Rail à
+  /// esquerda vs `ScrollableBottomNavBar` embaixo) anima tamanho/
+  /// opacidade via `AnimatedSize`/`AnimatedOpacity` - sem duplicar o
+  /// item ativo em nenhum momento da transição.
   @override
   Widget build(BuildContext context) {
     final bool isLandscape =
         MediaQuery.of(context).size.width > MediaQuery.of(context).size.height;
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 500),
-      switchInCurve: Curves.easeInOut,
-      switchOutCurve: Curves.easeInOut,
-      transitionBuilder: (child, animation) {
-        return FadeTransition(opacity: animation, child: child);
-      },
-      child: isLandscape ? _buildLandscapeLayout(context) : _buildPortraitLayout(context),
-    );
-  }
-
-  Widget _buildLandscapeLayout(BuildContext context) {
     return Scaffold(
-      key: const ValueKey('landscape'),
       appBar: _buildAppBar(),
       body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Mesmo achado/fix de `ShellNavigationScaffold` (2026-08-07) -
-          // `NavigationRail` não rola sozinho quando os itens não cabem na
-          // altura disponível. `LayoutBuilder` + `ConstrainedBox(minHeight)`
-          // restaura o comportamento original (Rail esticado do topo ao
-          // fim, achado real do usuário logo após o 1º fix - `IntrinsicHeight`
-          // sozinho tirava o "esticar" e deixava o Rail centralizado/curto)
-          // e ainda rola quando o conteúdo realmente não cabe.
-          LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: NavigationRail(
-                    selectedIndex: currentIndex,
-                    onDestinationSelected: onIndexChanged,
-                    leading: navLeading,
-                    labelType: NavigationRailLabelType.all,
-                    // Ativa o visual Material 3 no Rail
-                    useIndicator: true,
-                    indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
-                    destinations: items
-                        .map((item) => NavigationRailDestination(
-                              icon: Tooltip(
-                                message: item.label,
-                                child: Icon(item.icon),
-                              ),
-                              label: Text(item.label),
-                            ))
-                        .toList(),
-                  ),
-                ),
-              ),
+          AnimatedSize(
+            duration: _duracaoTransicaoChrome,
+            curve: Curves.easeInOut,
+            child: AnimatedOpacity(
+              duration: _duracaoTransicaoChrome,
+              opacity: isLandscape ? 1 : 0,
+              child: isLandscape
+                  ? _buildNavigationRail(context)
+                  : const SizedBox.shrink(),
             ),
           ),
-          const VerticalDivider(thickness: 1, width: 1),
-          Expanded(
-            child: _buildAnimatedContent(),
+          AnimatedSize(
+            duration: _duracaoTransicaoChrome,
+            curve: Curves.easeInOut,
+            child: isLandscape
+                ? const VerticalDivider(thickness: 1, width: 1)
+                : const SizedBox.shrink(),
           ),
+          Expanded(child: _buildAnimatedContent()),
         ],
+      ),
+      bottomNavigationBar: AnimatedSize(
+        duration: _duracaoTransicaoChrome,
+        curve: Curves.easeInOut,
+        alignment: Alignment.topCenter,
+        child: isLandscape
+            ? const SizedBox.shrink()
+            : ScrollableBottomNavBar(
+                items: items,
+                currentIndex: currentIndex,
+                onIndexChanged: onIndexChanged,
+                leading: navLeading,
+              ),
       ),
       floatingActionButton: floatingActionButton,
     );
   }
 
-  Widget _buildPortraitLayout(BuildContext context) {
-    return Scaffold(
-      key: const ValueKey('portrait'),
-      appBar: _buildAppBar(),
-      body: _buildAnimatedContent(),
-      bottomNavigationBar: ScrollableBottomNavBar(
-        items: items,
-        currentIndex: currentIndex,
-        onIndexChanged: onIndexChanged,
-        leading: navLeading,
+  Widget _buildNavigationRail(BuildContext context) {
+    // Mesmo achado/fix de `ShellNavigationScaffold` (2026-08-07) -
+    // `NavigationRail` não rola sozinho quando os itens não cabem na
+    // altura disponível. `LayoutBuilder` + `ConstrainedBox(minHeight)`
+    // restaura o comportamento original (Rail esticado do topo ao
+    // fim, achado real do usuário logo após o 1º fix - `IntrinsicHeight`
+    // sozinho tirava o "esticar" e deixava o Rail centralizado/curto)
+    // e ainda rola quando o conteúdo realmente não cabe.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: IntrinsicHeight(
+            child: NavigationRail(
+              selectedIndex: currentIndex,
+              onDestinationSelected: onIndexChanged,
+              leading: navLeading,
+              labelType: NavigationRailLabelType.all,
+              // Ativa o visual Material 3 no Rail
+              useIndicator: true,
+              indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
+              destinations: items
+                  .map(
+                    (item) => NavigationRailDestination(
+                      icon: Tooltip(
+                        message: item.label,
+                        child: Icon(item.icon),
+                      ),
+                      label: Text(item.label),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ),
       ),
-      floatingActionButton: floatingActionButton,
     );
   }
 
@@ -257,19 +285,25 @@ class ShellNavigationScaffold extends StatelessWidget {
                   ? LayoutBuilder(
                       builder: (context, constraints) => SingleChildScrollView(
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
                           child: IntrinsicHeight(
                             child: NavigationRail(
                               selectedIndex: currentIndex,
                               onDestinationSelected: onIndexChanged,
                               labelType: NavigationRailLabelType.all,
                               useIndicator: true,
-                              indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
+                              indicatorColor: Theme.of(
+                                context,
+                              ).colorScheme.secondaryContainer,
                               destinations: items
-                                  .map((item) => NavigationRailDestination(
-                                        icon: Icon(item.icon),
-                                        label: Text(item.label),
-                                      ))
+                                  .map(
+                                    (item) => NavigationRailDestination(
+                                      icon: Icon(item.icon),
+                                      label: Text(item.label),
+                                    ),
+                                  )
                                   .toList(),
                             ),
                           ),
@@ -391,10 +425,11 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
               // Largura do `leading` reservada ANTES de dividir entre os
               // itens (2026-08-14) - senão ele "roubaria" espaço que os
               // cálculos abaixo assumem ser só dos itens.
-              final larguraLeading =
-                  widget.leading != null ? ScrollableBottomNavBar._larguraItem : 0.0;
-              final larguraDisponivel =
-                  (constraints.maxWidth - larguraLeading).clamp(0.0, double.infinity);
+              final larguraLeading = widget.leading != null
+                  ? ScrollableBottomNavBar._larguraItem
+                  : 0.0;
+              final larguraDisponivel = (constraints.maxWidth - larguraLeading)
+                  .clamp(0.0, double.infinity);
               final larguraPorItem = n == 0
                   ? larguraDisponivel
                   : larguraDisponivel / n;
@@ -458,8 +493,12 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
                       onPointerSignal: (event) {
                         if (event is! PointerScrollEvent) return;
                         if (!_scrollController.hasClients) return;
-                        final alvo = (_scrollController.offset + event.scrollDelta.dy)
-                            .clamp(0.0, _scrollController.position.maxScrollExtent);
+                        final alvo =
+                            (_scrollController.offset + event.scrollDelta.dy)
+                                .clamp(
+                                  0.0,
+                                  _scrollController.position.maxScrollExtent,
+                                );
                         _scrollController.jumpTo(alvo);
                       },
                       child: ScrollConfiguration(
