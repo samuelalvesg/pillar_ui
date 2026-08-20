@@ -79,6 +79,15 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// [titleWidget]), mas funciona independente disso também.
   final Widget? navLeading;
 
+  /// Índice destacado (pill/indicador selecionado) no Rail/barra de
+  /// baixo - `null` (default) usa [currentIndex], preservando 100% o
+  /// comportamento antigo. Separado de [currentIndex] pra cobrir o
+  /// caso de um consumidor que sobrepõe o CONTEÚDO de todo item por
+  /// outra tela (overlay, sem gastar índice/ícone próprio na nav) sem
+  /// que nenhum item pareça "selecionado" por engano - passar `-1`
+  /// (fora do range de [items]) evita match com qualquer destino.
+  final int? highlightIndex;
+
   const AdaptiveNavigationScaffold({
     super.key,
     required this.items,
@@ -90,6 +99,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
     this.titleWidget,
     this.hideAppBar = false,
     this.navLeading,
+    this.highlightIndex,
   });
 
   /// Compartilhado entre paisagem/retrato (antes duplicado, 1 `AppBar`
@@ -130,6 +140,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isLandscape =
         MediaQuery.of(context).size.width > MediaQuery.of(context).size.height;
+    final resolvedHighlight = highlightIndex ?? currentIndex;
 
     return Scaffold(
       appBar: _buildAppBar(),
@@ -143,7 +154,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
               duration: _duracaoTransicaoChrome,
               opacity: isLandscape ? 1 : 0,
               child: isLandscape
-                  ? _buildNavigationRail(context)
+                  ? _buildNavigationRail(context, resolvedHighlight)
                   : const SizedBox.shrink(),
             ),
           ),
@@ -165,7 +176,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
             ? const SizedBox.shrink()
             : ScrollableBottomNavBar(
                 items: items,
-                currentIndex: currentIndex,
+                currentIndex: resolvedHighlight,
                 onIndexChanged: onIndexChanged,
                 leading: navLeading,
               ),
@@ -174,7 +185,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
     );
   }
 
-  Widget _buildNavigationRail(BuildContext context) {
+  Widget _buildNavigationRail(BuildContext context, int highlight) {
     // Mesmo achado/fix de `ShellNavigationScaffold` (2026-08-07) -
     // `NavigationRail` não rola sozinho quando os itens não cabem na
     // altura disponível. `LayoutBuilder` + `ConstrainedBox(minHeight)`
@@ -188,7 +199,14 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
           constraints: BoxConstraints(minHeight: constraints.maxHeight),
           child: IntrinsicHeight(
             child: NavigationRail(
-              selectedIndex: currentIndex,
+              // `NavigationRail` exige `null` (não qualquer inteiro
+              // fora do range) pra "nenhum destino selecionado" -
+              // valores como -1 (usado por quem quer suprimir o
+              // highlight, ver doc de [AdaptiveNavigationScaffold.
+              // highlightIndex]) disparam assert de bounds.
+              selectedIndex: (highlight >= 0 && highlight < items.length)
+                  ? highlight
+                  : null,
               onDestinationSelected: onIndexChanged,
               leading: navLeading,
               labelType: NavigationRailLabelType.all,
