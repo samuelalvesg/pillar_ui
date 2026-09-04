@@ -88,6 +88,30 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// (fora do range de [items]) evita match com qualquer destino.
   final int? highlightIndex;
 
+  /// Altura da barra inferior (`ScrollableBottomNavBar`) - `null` (default)
+  /// usa o padrão do widget. Repassado sem alterar comportamento de quem
+  /// não passa nada (pedido do usuário, 2026-09-03: reduzir o espaço em
+  /// branco acima do ícone/abaixo do texto na barra, mas configurável em
+  /// vez de fixo, já que outros consumidores do pacote podem preferir o
+  /// tamanho original).
+  final double? navBarHeight;
+
+  /// Padding vertical ao redor do ícone da barra inferior (o "espaço em
+  /// branco acima do botão") - `null` usa o padrão do widget.
+  final double? navBarIconPadding;
+
+  /// Espaço entre ícone e label na barra inferior (o "espaço abaixo do
+  /// texto" fica implícito nisso + na altura total, já que o conteúdo é
+  /// centralizado verticalmente) - `null` usa o padrão do widget.
+  final double? navBarLabelGap;
+
+  /// Largura máxima do label de cada destino do `NavigationRail`
+  /// (barra vertical, paisagem) - força o texto a quebrar em até 2 linhas
+  /// em vez de alargar o Rail inteiro pra caber numa linha só. `null`
+  /// (default) preserva o comportamento original (1 linha, Rail alarga
+  /// conforme o label mais longo).
+  final double? navRailLabelMaxWidth;
+
   const AdaptiveNavigationScaffold({
     super.key,
     required this.items,
@@ -100,6 +124,10 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
     this.hideAppBar = false,
     this.navLeading,
     this.highlightIndex,
+    this.navBarHeight,
+    this.navBarIconPadding,
+    this.navBarLabelGap,
+    this.navRailLabelMaxWidth,
   });
 
   /// Compartilhado entre paisagem/retrato (antes duplicado, 1 `AppBar`
@@ -179,6 +207,9 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
                 currentIndex: resolvedHighlight,
                 onIndexChanged: onIndexChanged,
                 leading: navLeading,
+                barHeight: navBarHeight,
+                iconPadding: navBarIconPadding,
+                labelGap: navBarLabelGap,
               ),
       ),
       floatingActionButton: floatingActionButton,
@@ -220,13 +251,33 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
                         message: item.label,
                         child: Icon(item.icon),
                       ),
-                      label: Text(item.label),
+                      label: _buildRailLabel(item.label),
                     ),
                   )
                   .toList(),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Sem [navRailLabelMaxWidth], preserva 100% o comportamento original
+  /// (label numa linha só, o Rail alarga conforme o label mais longo). Com
+  /// ele, o texto quebra em até 2 linhas dentro dessa largura em vez de
+  /// alargar o Rail - pedido do usuário (2026-09-03): rail muito largo por
+  /// causa de 1 label comprido.
+  Widget _buildRailLabel(String label) {
+    final maxWidth = navRailLabelMaxWidth;
+    if (maxWidth == null) return Text(label);
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        softWrap: true,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -261,12 +312,24 @@ class ShellNavigationScaffold extends StatelessWidget {
   final ValueChanged<int> onIndexChanged;
   final List<AdaptiveNavigationItem> items;
 
+  /// Mesmo significado de `AdaptiveNavigationScaffold.navBarHeight`/
+  /// `navBarIconPadding`/`navBarLabelGap`/`navRailLabelMaxWidth` - `null`
+  /// preserva o comportamento original.
+  final double? navBarHeight;
+  final double? navBarIconPadding;
+  final double? navBarLabelGap;
+  final double? navRailLabelMaxWidth;
+
   const ShellNavigationScaffold({
     super.key,
     required this.navigationShell,
     required this.currentIndex,
     required this.onIndexChanged,
     required this.items,
+    this.navBarHeight,
+    this.navBarIconPadding,
+    this.navBarLabelGap,
+    this.navRailLabelMaxWidth,
   });
 
   static const _duracaoTransicao = Duration(milliseconds: 280);
@@ -319,7 +382,18 @@ class ShellNavigationScaffold extends StatelessWidget {
                                   .map(
                                     (item) => NavigationRailDestination(
                                       icon: Icon(item.icon),
-                                      label: Text(item.label),
+                                      label: navRailLabelMaxWidth == null
+                                          ? Text(item.label)
+                                          : ConstrainedBox(
+                                              constraints: BoxConstraints(maxWidth: navRailLabelMaxWidth!),
+                                              child: Text(
+                                                item.label,
+                                                textAlign: TextAlign.center,
+                                                maxLines: 2,
+                                                softWrap: true,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
                                     ),
                                   )
                                   .toList(),
@@ -351,6 +425,9 @@ class ShellNavigationScaffold extends StatelessWidget {
                 items: items,
                 currentIndex: currentIndex,
                 onIndexChanged: onIndexChanged,
+                barHeight: navBarHeight,
+                iconPadding: navBarIconPadding,
+                labelGap: navBarLabelGap,
               ),
       ),
     );
@@ -372,18 +449,39 @@ class ScrollableBottomNavBar extends StatefulWidget {
     required this.currentIndex,
     required this.onIndexChanged,
     this.leading,
-  });
+    double? barHeight,
+    double? iconPadding,
+    double? labelGap,
+  }) : barHeight = barHeight ?? _alturaBarraDefault,
+       iconPadding = iconPadding ?? _iconPaddingDefault,
+       labelGap = labelGap ?? _labelGapDefault;
 
   final List<AdaptiveNavigationItem> items;
   final int currentIndex;
   final ValueChanged<int> onIndexChanged;
 
   /// Conteúdo extra fixo ANTES dos itens (2026-08-14) - mesma altura
-  /// da barra (`_alturaBarra`), largura tipo [_larguraItem]. `null`
+  /// da barra ([barHeight]), largura tipo [_larguraItem]. `null`
   /// (default) não muda nada do layout existente.
   final Widget? leading;
 
-  static const double _alturaBarra = 64;
+  /// Altura total da barra - default [_alturaBarraDefault]. Reduzir
+  /// diminui proporcionalmente o espaço em branco acima do ícone/abaixo
+  /// do label (o conteúdo é centralizado verticalmente dentro da altura
+  /// total).
+  final double barHeight;
+
+  /// Padding vertical do "pill" ao redor do ícone - default
+  /// [_iconPaddingDefault]. Reduzir aproxima o ícone das bordas
+  /// superior/inferior do item.
+  final double iconPadding;
+
+  /// Espaço entre ícone e label - default [_labelGapDefault].
+  final double labelGap;
+
+  static const double _alturaBarraDefault = 64;
+  static const double _iconPaddingDefault = 4;
+  static const double _labelGapDefault = 4;
   static const double _larguraItem = 84;
 
   /// Largura mínima pra caber ícone sozinho (sem texto) - abaixo disso nem
@@ -436,7 +534,7 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: ScrollableBottomNavBar._alturaBarra,
+          height: widget.barHeight,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final n = widget.items.length;
@@ -555,7 +653,7 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
 
   Widget _buildLeading() => SizedBox(
     width: ScrollableBottomNavBar._larguraItem,
-    height: ScrollableBottomNavBar._alturaBarra,
+    height: widget.barHeight,
     child: widget.leading,
   );
 
@@ -581,13 +679,13 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
     // "pill" padrão Material 3 - inconsistente entre os 2. Padronizado
     // pro mesmo visual do Rail.
     final conteudo = SizedBox(
-      height: ScrollableBottomNavBar._alturaBarra,
+      height: widget.barHeight,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: widget.iconPadding),
             decoration: BoxDecoration(
               color: selecionado
                   ? theme.colorScheme.secondaryContainer
@@ -597,7 +695,7 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
             child: Icon(item.icon, color: corConteudo),
           ),
           if (mostrarTexto) ...[
-            const SizedBox(height: 4),
+            SizedBox(height: widget.labelGap),
             Text(
               item.label,
               style: TextStyle(fontSize: 11, color: corConteudo),
