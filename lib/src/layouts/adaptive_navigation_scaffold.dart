@@ -112,6 +112,14 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// conforme o label mais longo).
   final double? navRailLabelMaxWidth;
 
+  /// Tamanho da fonte do label dos destinos (barra inferior e Rail) - `null`
+  /// preserva o padrão (11 na barra inferior, estilo do tema no Rail).
+  final double? navLabelFontSize;
+
+  /// Largura mínima do `NavigationRail` - `null` usa o padrão do Material
+  /// (72).
+  final double? navRailMinWidth;
+
   const AdaptiveNavigationScaffold({
     super.key,
     required this.items,
@@ -128,6 +136,8 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
     this.navBarIconPadding,
     this.navBarLabelGap,
     this.navRailLabelMaxWidth,
+    this.navLabelFontSize,
+    this.navRailMinWidth,
   });
 
   /// Compartilhado entre paisagem/retrato (antes duplicado, 1 `AppBar`
@@ -210,6 +220,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
                 barHeight: navBarHeight,
                 iconPadding: navBarIconPadding,
                 labelGap: navBarLabelGap,
+                labelFontSize: navLabelFontSize,
               ),
       ),
       floatingActionButton: floatingActionButton,
@@ -240,6 +251,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
                   : null,
               onDestinationSelected: onIndexChanged,
               leading: navLeading,
+              minWidth: navRailMinWidth,
               labelType: NavigationRailLabelType.all,
               // Ativa o visual Material 3 no Rail
               useIndicator: true,
@@ -269,11 +281,15 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// causa de 1 label comprido.
   Widget _buildRailLabel(String label) {
     final maxWidth = navRailLabelMaxWidth;
-    if (maxWidth == null) return Text(label);
+    final estilo = navLabelFontSize == null
+        ? null
+        : TextStyle(fontSize: navLabelFontSize);
+    if (maxWidth == null) return Text(label, style: estilo);
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
       child: Text(
         label,
+        style: estilo,
         textAlign: TextAlign.center,
         maxLines: 2,
         softWrap: true,
@@ -319,6 +335,8 @@ class ShellNavigationScaffold extends StatelessWidget {
   final double? navBarIconPadding;
   final double? navBarLabelGap;
   final double? navRailLabelMaxWidth;
+  final double? navLabelFontSize;
+  final double? navRailMinWidth;
 
   const ShellNavigationScaffold({
     super.key,
@@ -330,9 +348,14 @@ class ShellNavigationScaffold extends StatelessWidget {
     this.navBarIconPadding,
     this.navBarLabelGap,
     this.navRailLabelMaxWidth,
+    this.navLabelFontSize,
+    this.navRailMinWidth,
   });
 
   static const _duracaoTransicao = Duration(milliseconds: 280);
+
+  TextStyle? get _estiloLabelRail =>
+      navLabelFontSize == null ? null : TextStyle(fontSize: navLabelFontSize);
 
   @override
   Widget build(BuildContext context) {
@@ -373,6 +396,7 @@ class ShellNavigationScaffold extends StatelessWidget {
                             child: NavigationRail(
                               selectedIndex: currentIndex,
                               onDestinationSelected: onIndexChanged,
+                              minWidth: navRailMinWidth,
                               labelType: NavigationRailLabelType.all,
                               useIndicator: true,
                               indicatorColor: Theme.of(
@@ -383,11 +407,12 @@ class ShellNavigationScaffold extends StatelessWidget {
                                     (item) => NavigationRailDestination(
                                       icon: Icon(item.icon),
                                       label: navRailLabelMaxWidth == null
-                                          ? Text(item.label)
+                                          ? Text(item.label, style: _estiloLabelRail)
                                           : ConstrainedBox(
                                               constraints: BoxConstraints(maxWidth: navRailLabelMaxWidth!),
                                               child: Text(
                                                 item.label,
+                                                style: _estiloLabelRail,
                                                 textAlign: TextAlign.center,
                                                 maxLines: 2,
                                                 softWrap: true,
@@ -428,6 +453,7 @@ class ShellNavigationScaffold extends StatelessWidget {
                 barHeight: navBarHeight,
                 iconPadding: navBarIconPadding,
                 labelGap: navBarLabelGap,
+                labelFontSize: navLabelFontSize,
               ),
       ),
     );
@@ -452,9 +478,11 @@ class ScrollableBottomNavBar extends StatefulWidget {
     double? barHeight,
     double? iconPadding,
     double? labelGap,
+    double? labelFontSize,
   }) : barHeight = barHeight ?? _alturaBarraDefault,
        iconPadding = iconPadding ?? _iconPaddingDefault,
-       labelGap = labelGap ?? _labelGapDefault;
+       labelGap = labelGap ?? _labelGapDefault,
+       labelFontSize = labelFontSize ?? _labelFontSizeDefault;
 
   final List<AdaptiveNavigationItem> items;
   final int currentIndex;
@@ -479,6 +507,10 @@ class ScrollableBottomNavBar extends StatefulWidget {
   /// Espaço entre ícone e label - default [_labelGapDefault].
   final double labelGap;
 
+  /// Tamanho da fonte do label - default [_labelFontSizeDefault].
+  final double labelFontSize;
+
+  static const double _labelFontSizeDefault = 11;
   static const double _alturaBarraDefault = 64;
   static const double _iconPaddingDefault = 4;
   static const double _labelGapDefault = 4;
@@ -698,7 +730,7 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
             SizedBox(height: widget.labelGap),
             Text(
               item.label,
-              style: TextStyle(fontSize: 11, color: corConteudo),
+              style: TextStyle(fontSize: widget.labelFontSize, color: corConteudo),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
