@@ -36,6 +36,18 @@ class _MouseDragScrollBehavior extends MaterialScrollBehavior {
   };
 }
 
+/// Estilo do rótulo dos destinos do `NavigationRail` (barra vertical).
+///
+/// Mesmo peso do rótulo da barra inferior ([ScrollableBottomNavBar]), que é um widget próprio e usa o
+/// peso normal do tema. O `NavigationRail` do Material define o rótulo com `labelMedium` (peso 500) e
+/// o `TextStyle(fontSize: ...)` passado pelo app só é MESCLADO com isso, então o rail ficava com
+/// aparência de negrito enquanto a barra horizontal não (achado do usuário, 2026-09-25). Fixar o peso
+/// aqui - numa função só, usada pelos dois scaffolds - mantém as duas barras iguais.
+///
+/// [fontSize] `null` mantém o tamanho padrão do Material.
+TextStyle estiloRotuloDoRail(double? fontSize) =>
+    TextStyle(fontSize: fontSize, fontWeight: FontWeight.w400);
+
 class AdaptiveNavigationItem {
   final IconData icon;
   final String label;
@@ -281,9 +293,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// causa de 1 label comprido.
   Widget _buildRailLabel(String label) {
     final maxWidth = navRailLabelMaxWidth;
-    final estilo = navLabelFontSize == null
-        ? null
-        : TextStyle(fontSize: navLabelFontSize);
+    final estilo = estiloRotuloDoRail(navLabelFontSize);
     if (maxWidth == null) return Text(label, style: estilo);
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
@@ -354,8 +364,7 @@ class ShellNavigationScaffold extends StatelessWidget {
 
   static const _duracaoTransicao = Duration(milliseconds: 280);
 
-  TextStyle? get _estiloLabelRail =>
-      navLabelFontSize == null ? null : TextStyle(fontSize: navLabelFontSize);
+  TextStyle get _estiloLabelRail => estiloRotuloDoRail(navLabelFontSize);
 
   @override
   Widget build(BuildContext context) {
