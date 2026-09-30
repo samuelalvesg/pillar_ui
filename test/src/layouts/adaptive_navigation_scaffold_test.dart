@@ -139,4 +139,61 @@ void main() {
       expect(find.text('Título simples'), findsOneWidget);
     });
   }
+
+  group('badgeCount', () {
+    Widget app(int badgeCount, Size tamanho) => MaterialApp(
+      home: MediaQuery(
+        data: MediaQueryData(size: tamanho),
+        child: AdaptiveNavigationScaffold(
+          currentIndex: 0,
+          onIndexChanged: (_) {},
+          items: [
+            const AdaptiveNavigationItem(
+              icon: Icons.home,
+              label: 'Início',
+              screen: SizedBox.shrink(),
+            ),
+            AdaptiveNavigationItem(
+              icon: Icons.notifications,
+              label: 'Notificações',
+              screen: const SizedBox.shrink(),
+              badgeCount: badgeCount,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    Future<void> montar(
+      WidgetTester tester,
+      int badgeCount,
+      Size tamanho,
+    ) async {
+      tester.view.physicalSize = tamanho;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(app(badgeCount, tamanho));
+      await tester.pumpAndSettle();
+    }
+
+    for (final (nome, tamanho) in [
+      ('retrato (barra inferior)', const Size(400, 800)),
+      ('paisagem (rail)', const Size(800, 400)),
+      ('largo (rail)', const Size(1400, 900)),
+    ]) {
+      testWidgets('mostra o contador no $nome', (tester) async {
+        await montar(tester, 3, tamanho);
+
+        expect(find.byType(Badge), findsOneWidget);
+        expect(find.text('3'), findsOneWidget);
+      });
+    }
+
+    testWidgets('0 não mostra badge', (tester) async {
+      await montar(tester, 0, const Size(400, 800));
+
+      expect(find.byType(Badge), findsNothing);
+    });
+  });
 }

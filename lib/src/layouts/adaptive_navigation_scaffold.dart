@@ -41,11 +41,25 @@ class AdaptiveNavigationItem {
   final String label;
   final Widget screen;
 
+  /// Contador sobre o ícone (ex.: notificações não lidas). `0` = sem badge.
+  /// Aditivo (2026-09-30): nenhum consumidor existente precisa mudar.
+  final int badgeCount;
+
   const AdaptiveNavigationItem({
     required this.icon,
     required this.label,
     required this.screen,
+    this.badgeCount = 0,
   });
+}
+
+/// Ícone do item com o badge de [AdaptiveNavigationItem.badgeCount] quando
+/// > 0 - o MESMO nas 3 formas da barra (rail do layout largo, rail da
+/// paisagem e barra inferior), para o contador não sumir ao girar a tela.
+Widget _iconeDoItem(AdaptiveNavigationItem item, {Color? cor}) {
+  final icone = Icon(item.icon, color: cor);
+  if (item.badgeCount <= 0) return icone;
+  return Badge.count(count: item.badgeCount, child: icone);
 }
 
 class AdaptiveNavigationScaffold extends StatelessWidget {
@@ -261,7 +275,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
                     (item) => NavigationRailDestination(
                       icon: Tooltip(
                         message: item.label,
-                        child: Icon(item.icon),
+                        child: _iconeDoItem(item),
                       ),
                       label: _buildRailLabel(item.label),
                     ),
@@ -405,7 +419,7 @@ class ShellNavigationScaffold extends StatelessWidget {
                               destinations: items
                                   .map(
                                     (item) => NavigationRailDestination(
-                                      icon: Icon(item.icon),
+                                      icon: _iconeDoItem(item),
                                       label: navRailLabelMaxWidth == null
                                           ? Text(item.label, style: _estiloLabelRail)
                                           : ConstrainedBox(
@@ -724,7 +738,7 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(item.icon, color: corConteudo),
+            child: _iconeDoItem(item, cor: corConteudo),
           ),
           if (mostrarTexto) ...[
             SizedBox(height: widget.labelGap),
