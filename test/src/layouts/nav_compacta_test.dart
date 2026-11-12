@@ -4,7 +4,7 @@
 /// label da barra inferior e a largura do Rail mudam.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pillar_ui/pillar_ui.dart';
 
