@@ -19,7 +19,7 @@
 ///   ⚠️ 
 /// ==============================================
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class AppColors {
   // Seed único de marca (2026-08-07, pedido do usuário: botões com cor

@@ -20,7 +20,7 @@
 /// ==============================================
 
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Permite arrastar com MOUSE pra rolar (achado real, 2026-07-27) - o
 /// `ScrollBehavior` padrão do Flutter só aceita drag por toque/caneta, não

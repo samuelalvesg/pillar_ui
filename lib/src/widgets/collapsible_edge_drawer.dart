@@ -19,7 +19,7 @@
 ///   ⚠️
 /// ==============================================
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// De qual borda o [CollapsibleEdgeDrawer] nasce - espelha a ordem
 /// dos filhos do `Row` interno (conteúdo/aba/divisor).
