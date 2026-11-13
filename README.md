@@ -43,7 +43,7 @@ dependencies:
   pillar_ui:
     git:
       url: https://github.com/samuelalvesg/pillar_ui.git
-      ref: main
+      ref: v0.1.0-alpha.1   # tag SemVer (ver CHANGELOG.md); evite `main`, o pubspec.lock do app fixa o commit e fica velho
 ```
 
 ```dart
