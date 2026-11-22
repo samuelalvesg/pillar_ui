@@ -21,6 +21,8 @@ Revisão de UI/UX e acessibilidade (`docs/ui-ux-review.md`).
 * Movimento reduzido: `AppMotion.duration` zera as animações quando o sistema pede; `AnimatedSizeOrCut` evita a asserção do `AnimatedSize` com duração zero.
 * Tokens: `AppSpacing`, `AppMotion`, `StatusColors` (sucesso e aviso com par `on*`, contraste ≥ 4,5:1).
 
+* `ShellNavigationScaffold` passa a usar o mesmo rail do `AdaptiveNavigationScaffold` (internamente um só widget): ganha tooltip nos ícones do rail, `extendedRailBreakpoint`, `railBreakpoint` e os atalhos de teclado.
+
 **Descontinuado:** `AppColors.primaryLight`, `success`, `warning`, `danger`.
 
 ## 0.1.0-alpha.1

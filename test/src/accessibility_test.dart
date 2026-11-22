@@ -449,4 +449,55 @@ void main() {
       expect(picked, [1]);
     });
   });
+
+  group('ShellNavigationScaffold shares the same behavior', () {
+    Widget shell({ValueChanged<int>? onChanged}) => ShellNavigationScaffold(
+      navigationShell: const Text('shell'),
+      items: _items,
+      currentIndex: 1,
+      onIndexChanged: onChanged ?? (_) {},
+    );
+
+    for (final theme in [AppTheme.light(), AppTheme.dark()]) {
+      final mode = theme.colorScheme.brightness.name;
+
+      testWidgets('bar and rail color active and inactive alike ($mode)', (
+        tester,
+      ) async {
+        final scheme = theme.colorScheme;
+        _size(tester, const Size(400, 800));
+        await tester.pumpWidget(_app(shell(), theme: theme));
+        await tester.pumpAndSettle();
+        Color? barIcon(IconData i) => tester
+            .widget<Icon>(
+              find.descendant(
+                of: find.byType(ScrollableBottomNavBar),
+                matching: find.byIcon(i),
+              ),
+            )
+            .color;
+        expect(barIcon(Icons.search), scheme.onSurface);
+        expect(barIcon(Icons.home), isNot(scheme.onSurface));
+
+        _size(tester, const Size(900, 600));
+        await tester.pumpWidget(_app(shell(), theme: theme));
+        await tester.pumpAndSettle();
+        final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+        expect(rail.useIndicator, isFalse);
+        expect(rail.selectedIconTheme?.color, scheme.onSurface);
+      });
+    }
+
+    testWidgets('width breakpoint and Alt+digit work', (tester) async {
+      final picked = <int>[];
+      _size(tester, const Size(800, 1200));
+      await tester.pumpWidget(_app(shell(onChanged: picked.add)));
+      await tester.pumpAndSettle();
+      expect(find.byType(NavigationRail), findsOneWidget);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+      expect(picked, [0]);
+    });
+  });
 }
