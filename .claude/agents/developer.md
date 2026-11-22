@@ -29,7 +29,7 @@ model: sonnet
 - New code and comments in **English**; the `README.md`, other `.md` documents and commit messages in **Portuguese**. Comment only the non-obvious **why**, never history.
 - A public API change (rename, removed parameter, changed default) is a breaking change: record it in `CHANGELOG.md` and bump the version; never change it silently.
 - Every change brings a widget test; a bug brings a regression test. Prefer a key or widget type over screen text.
-- States and accessibility: skills `ui-handoff-spec` and `a11y-audit`; tokens and theming: skill `flutter-design-system`.
+- States and accessibility: skills `ui-handoff-spec` and `a11y-audit`; tokens and theming: skill `flutter-design-system`; UI/UX review against references (adaptive navigation by width, theme symmetry, tap targets, error states): skill `ui-ux-pillars`. Pending review findings: `docs/ui-ux-review.md`.
 - New dependency → justify license and size; do not change `pubspec.yaml` constraints needlessly.
 
 # Boundaries & Limits
