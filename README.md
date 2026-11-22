@@ -42,6 +42,18 @@ mais de um app.
 - Textos de tooltip e de ação (`toggleTooltip` do drawer, `retryLabel` do erro) vêm do app: o pacote não fixa idioma.
 - Com "reduzir movimento" ligado no sistema, as transições viram corte seco.
 
+## Consumidores e o que muda na 0.1.0-alpha.2
+
+Conferido em 2026-11-22 rodando os testes de cada consumidor contra esta versão (por `dependency_overrides` local, sem mexer nos repos):
+
+| Consumidor | API que usa | Resultado |
+|---|---|---|
+| Symmetris-frontend (`pillar_home`, `pillar_auth`, `symmetris_shell`) | `ShellNavigationScaffold` com `navBarHeight`/`navLabelFontSize`/`navRailMinWidth`, `AdaptiveNavigationItem`, `ErrorContainerWidget`, `AppTheme.light()/dark()` | 97 + 68 + 6 testes passam |
+| sound_mixer_ui | `AdaptiveNavigationScaffold` com `highlightIndex: -1`, `navLeading`, `hideAppBar`, `titleWidget` | 232 passam; 4 já falhavam antes (mesmas 4 com a versão fixada no lock) |
+| Bible With Me | `ShellNavigationScaffold` com `bottomBarVisible`, `shortcutModifier: control` | suíte inteira passa |
+
+O que o consumidor percebe ao atualizar: rail a partir de 600 dp de largura (tablet em retrato passa a ter rail), seleção só por cor, aba do drawer de 48 dp, tema claro sem o fundo cinza e atalhos de teclado ligados (`enableKeyboardShortcuts: false` desliga). Quem importava `AppTextTheme.textTheme` precisa migrar para `AppTextTheme.build`.
+
 ## Uso
 
 Dependência git (sem publicação no pub.dev ainda):
