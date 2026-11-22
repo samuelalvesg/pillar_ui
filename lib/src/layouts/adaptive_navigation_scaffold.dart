@@ -56,22 +56,47 @@ TextStyle estiloRotuloDoRail(double? fontSize) =>
 /// a rail, below it a bottom bar. Decided by width, never by orientation.
 const double kDefaultRailBreakpoint = 600;
 
-/// Alt+1 .. Alt+9 jump to the first nine destinations. A focus anchor keeps
-/// the shortcuts live when nothing else holds focus. Alt (not Ctrl) because
-/// browsers reserve Ctrl+digit for their own tabs.
-class _NavShortcuts extends StatelessWidget {
+/// Modifier key of the "jump to destination N" shortcuts.
+enum NavigationShortcutModifier {
+  /// Alt+1 .. Alt+9. Works inside browsers, which keep Ctrl+digit for their
+  /// own tabs.
+  alt,
+
+  /// Ctrl+1 .. Ctrl+9. The desktop-app convention.
+  control,
+}
+
+/// Keyboard navigation of the shell: Ctrl+Tab / Ctrl+Shift+Tab cycle through
+/// the destinations (wrapping), and `modifier`+1..9 jump straight to one.
+/// Also gives the shell a reading-order focus group, so Tab walks the visible
+/// screen top to bottom and then the navigation.
+///
+/// Focus held inside a screen that is being hidden would be lost; after a
+/// shortcut the shell's own scope takes it, which keeps the shortcuts working
+/// (key events only reach shortcuts above a focused node) and makes the next
+/// Tab press start from the newly shown screen.
+class _NavShortcuts extends StatefulWidget {
   const _NavShortcuts({
     required this.enabled,
+    required this.modifier,
+    required this.currentIndex,
     required this.itemCount,
     required this.onIndexChanged,
     required this.child,
   });
 
   final bool enabled;
+  final NavigationShortcutModifier modifier;
+  final int currentIndex;
   final int itemCount;
   final ValueChanged<int> onIndexChanged;
   final Widget child;
 
+  @override
+  State<_NavShortcuts> createState() => _NavShortcutsState();
+}
+
+class _NavShortcutsState extends State<_NavShortcuts> {
   static const _digits = [
     LogicalKeyboardKey.digit1,
     LogicalKeyboardKey.digit2,
@@ -84,15 +109,47 @@ class _NavShortcuts extends StatelessWidget {
     LogicalKeyboardKey.digit9,
   ];
 
+  final _scope = FocusScopeNode(debugLabel: 'NavShortcuts');
+
+  @override
+  void dispose() {
+    _scope.dispose();
+    super.dispose();
+  }
+
+  void _select(int index) {
+    _scope.requestFocus();
+    widget.onIndexChanged(index);
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (!enabled) return child;
+    if (!widget.enabled || widget.itemCount == 0) return widget.child;
+    final count = widget.itemCount;
+    final current = widget.currentIndex;
+    final alt = widget.modifier == NavigationShortcutModifier.alt;
     return CallbackShortcuts(
       bindings: {
-        for (var i = 0; i < _digits.length && i < itemCount; i++)
-          SingleActivator(_digits[i], alt: true): () => onIndexChanged(i),
+        SingleActivator(LogicalKeyboardKey.tab, control: true): () =>
+            _select((current + 1) % count),
+        SingleActivator(
+          LogicalKeyboardKey.tab,
+          control: true,
+          shift: true,
+        ): () =>
+            _select((current - 1 + count) % count),
+        for (var i = 0; i < count && i < _digits.length; i++)
+          SingleActivator(_digits[i], alt: alt, control: !alt): () =>
+              _select(i),
       },
-      child: Focus(autofocus: true, skipTraversal: true, child: child),
+      child: FocusScope(
+        node: _scope,
+        autofocus: true,
+        child: FocusTraversalGroup(
+          policy: ReadingOrderTraversalPolicy(),
+          child: widget.child,
+        ),
+      ),
     );
   }
 }
@@ -282,11 +339,13 @@ class _NavBody extends StatelessWidget {
 class _BottomBarSlot extends StatelessWidget {
   const _BottomBarSlot({
     required this.showRail,
+    required this.visible,
     required this.duration,
     required this.bar,
   });
 
   final bool showRail;
+  final bool visible;
   final Duration duration;
   final Widget bar;
 
@@ -296,7 +355,7 @@ class _BottomBarSlot extends StatelessWidget {
       duration: duration,
       curve: AppMotion.standard,
       alignment: Alignment.topCenter,
-      child: showRail ? const SizedBox.shrink() : bar,
+      child: showRail || !visible ? const SizedBox.shrink() : bar,
     );
   }
 }
@@ -380,8 +439,16 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// side. `null` (default) keeps the narrow rail at every width.
   final double? extendedRailBreakpoint;
 
-  /// Alt+1 .. Alt+9 select the first nine destinations.
+  /// Ctrl+Tab / Ctrl+Shift+Tab cycle the destinations and
+  /// [shortcutModifier]+1..9 jump to one of the first nine.
   final bool enableKeyboardShortcuts;
+
+  /// Modifier of the jump-to-destination shortcuts.
+  final NavigationShortcutModifier shortcutModifier;
+
+  /// `false` collapses the bottom bar (for example while reading, in sync
+  /// with a header that hides). Ignored when the rail is showing.
+  final bool bottomBarVisible;
 
   const AdaptiveNavigationScaffold({
     super.key,
@@ -404,6 +471,8 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
     this.railBreakpoint = kDefaultRailBreakpoint,
     this.extendedRailBreakpoint,
     this.enableKeyboardShortcuts = true,
+    this.shortcutModifier = NavigationShortcutModifier.alt,
+    this.bottomBarVisible = true,
   });
 
   /// Compartilhado entre paisagem/retrato (antes duplicado, 1 `AppBar`
@@ -446,6 +515,8 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
 
     return _NavShortcuts(
       enabled: enableKeyboardShortcuts,
+      modifier: shortcutModifier,
+      currentIndex: currentIndex,
       itemCount: items.length,
       onIndexChanged: onIndexChanged,
       child: Scaffold(
@@ -467,6 +538,7 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
         ),
         bottomNavigationBar: _BottomBarSlot(
           showRail: showRail,
+          visible: bottomBarVisible,
           duration: dur,
           bar: ScrollableBottomNavBar(
             items: items,
@@ -531,8 +603,16 @@ class ShellNavigationScaffold extends StatelessWidget {
   /// side. `null` (default) keeps the narrow rail at every width.
   final double? extendedRailBreakpoint;
 
-  /// Alt+1 .. Alt+9 select the first nine destinations.
+  /// Ctrl+Tab / Ctrl+Shift+Tab cycle the destinations and
+  /// [shortcutModifier]+1..9 jump to one of the first nine.
   final bool enableKeyboardShortcuts;
+
+  /// Modifier of the jump-to-destination shortcuts.
+  final NavigationShortcutModifier shortcutModifier;
+
+  /// `false` collapses the bottom bar (for example while reading, in sync
+  /// with a header that hides). Ignored when the rail is showing.
+  final bool bottomBarVisible;
 
   const ShellNavigationScaffold({
     super.key,
@@ -549,6 +629,8 @@ class ShellNavigationScaffold extends StatelessWidget {
     this.railBreakpoint = kDefaultRailBreakpoint,
     this.extendedRailBreakpoint,
     this.enableKeyboardShortcuts = true,
+    this.shortcutModifier = NavigationShortcutModifier.alt,
+    this.bottomBarVisible = true,
   });
 
   @override
@@ -560,6 +642,8 @@ class ShellNavigationScaffold extends StatelessWidget {
     // only the chrome around it animates. See [_NavBody].
     return _NavShortcuts(
       enabled: enableKeyboardShortcuts,
+      modifier: shortcutModifier,
+      currentIndex: currentIndex,
       itemCount: items.length,
       onIndexChanged: onIndexChanged,
       child: Scaffold(
@@ -579,6 +663,7 @@ class ShellNavigationScaffold extends StatelessWidget {
         ),
         bottomNavigationBar: _BottomBarSlot(
           showRail: showRail,
+          visible: bottomBarVisible,
           duration: dur,
           bar: ScrollableBottomNavBar(
             items: items,

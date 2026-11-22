@@ -106,11 +106,23 @@ void main() {
       }
     });
 
+    test('extensions and fontFamily pass through to both themes', () {
+      for (final theme in [
+        AppTheme.light(extensions: [StatusColors.dark], fontFamily: 'Atkinson'),
+        AppTheme.dark(extensions: [StatusColors.light], fontFamily: 'Atkinson'),
+      ]) {
+        expect(theme.textTheme.bodyMedium?.fontFamily, 'Atkinson');
+        expect(theme.extension<StatusColors>(), isNotNull);
+      }
+    });
+
     test('text theme sets no fixed color', () {
-      final t = AppTextTheme.textTheme;
+      final t = AppTextTheme.build(headingFamily: 'H', bodyFamily: 'B');
       for (final s in [t.displayLarge, t.displayMedium, t.bodyMedium]) {
         expect(s?.color, isNull);
       }
+      expect(t.displayLarge?.fontFamily, 'H');
+      expect(t.bodyMedium?.fontFamily, 'B');
     });
   });
 
@@ -447,6 +459,112 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pump();
       expect(picked, [1]);
+    });
+  });
+
+  group('shell keyboard and bar visibility', () {
+    Widget shell({
+      int index = 0,
+      required ValueChanged<int> onChanged,
+      NavigationShortcutModifier modifier = NavigationShortcutModifier.alt,
+      bool barVisible = true,
+    }) => ShellNavigationScaffold(
+      navigationShell: const Text('shell'),
+      items: _items,
+      currentIndex: index,
+      onIndexChanged: onChanged,
+      shortcutModifier: modifier,
+      bottomBarVisible: barVisible,
+    );
+
+    Future<void> chord(
+      WidgetTester tester,
+      LogicalKeyboardKey mod,
+      LogicalKeyboardKey key, {
+      bool shift = false,
+    }) async {
+      await tester.sendKeyDownEvent(mod);
+      if (shift) await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(key);
+      if (shift) await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyUpEvent(mod);
+      await tester.pump();
+    }
+
+    testWidgets('Ctrl+Tab cycles and wraps, Ctrl+Shift+Tab goes back', (
+      tester,
+    ) async {
+      var index = 0;
+      _size(tester, const Size(400, 800));
+      await tester.pumpWidget(
+        _app(
+          StatefulBuilder(
+            builder: (context, setState) => shell(
+              index: index,
+              onChanged: (i) => setState(() => index = i),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final ctrl = LogicalKeyboardKey.controlLeft;
+      await chord(tester, ctrl, LogicalKeyboardKey.tab);
+      expect(index, 1);
+      await chord(tester, ctrl, LogicalKeyboardKey.tab);
+      await chord(tester, ctrl, LogicalKeyboardKey.tab);
+      expect(index, 0, reason: 'wraps after the last destination');
+      await chord(tester, ctrl, LogicalKeyboardKey.tab, shift: true);
+      expect(index, 2, reason: 'wraps backwards');
+    });
+
+    testWidgets('control modifier: Ctrl+2 jumps, Alt+2 does not', (
+      tester,
+    ) async {
+      final picked = <int>[];
+      _size(tester, const Size(400, 800));
+      await tester.pumpWidget(
+        _app(
+          shell(
+            onChanged: picked.add,
+            modifier: NavigationShortcutModifier.control,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await chord(
+        tester,
+        LogicalKeyboardKey.altLeft,
+        LogicalKeyboardKey.digit2,
+      );
+      expect(picked, isEmpty);
+      await chord(
+        tester,
+        LogicalKeyboardKey.controlLeft,
+        LogicalKeyboardKey.digit2,
+      );
+      expect(picked, [1]);
+    });
+
+    testWidgets('bottomBarVisible: false collapses the bar, rail ignores it', (
+      tester,
+    ) async {
+      _size(tester, const Size(400, 800));
+      await tester.pumpWidget(
+        _app(shell(onChanged: (_) {}, barVisible: false)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(ScrollableBottomNavBar), findsNothing);
+
+      await tester.pumpWidget(_app(shell(onChanged: (_) {})));
+      await tester.pumpAndSettle();
+      expect(find.byType(ScrollableBottomNavBar), findsOneWidget);
+
+      _size(tester, const Size(900, 600));
+      await tester.pumpWidget(
+        _app(shell(onChanged: (_) {}, barVisible: false)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(NavigationRail), findsOneWidget);
     });
   });
 

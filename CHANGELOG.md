@@ -6,7 +6,7 @@ Revisão de UI/UX e acessibilidade (`docs/ui-ux-review.md`).
 
 * Rail ou barra inferior passa a ser decidido pela **largura** (`railBreakpoint`, padrão 600 dp), não pela orientação. Um tablet em retrato agora usa o rail; uma janela estreita e baixa usa a barra.
 * `AppTheme.light` e `AppTheme.dark` usam o mesmo caminho (`ColorScheme.fromSeed` com `brightness`); o claro deixa de trocar `surface` por `Colors.grey[50]`.
-* `AppTextTheme`: sem `color` fixo (o `displayLarge` preto quebrava o modo escuro), títulos em Poppins e corpo em Inter (o `displayMedium` deixa de ser Roboto).
+* `AppTextTheme`: sem `color` fixo (o `displayLarge` preto quebrava o modo escuro), títulos e corpo na família que o app informar.
 * `ErrorContainerWidget`: texto e ícone em `onErrorContainer`, estilo `bodySmall` do tema, região viva para leitor de tela.
 * `CollapsibleEdgeDrawer`: aba de 48 dp (era 40) e ícone de 20.
 * A barra inferior cresce com a escala de fonte do usuário.
@@ -22,6 +22,12 @@ Revisão de UI/UX e acessibilidade (`docs/ui-ux-review.md`).
 * Tokens: `AppSpacing`, `AppMotion`, `StatusColors` (sucesso e aviso com par `on*`, contraste ≥ 4,5:1).
 
 * `ShellNavigationScaffold` passa a usar o mesmo rail do `AdaptiveNavigationScaffold` (internamente um só widget): ganha tooltip nos ícones do rail, `extendedRailBreakpoint`, `railBreakpoint` e os atalhos de teclado.
+
+* Atalhos (levados do Bible With Me): `Ctrl+Tab` / `Ctrl+Shift+Tab` ciclam os destinos com volta, `shortcutModifier` (`alt` por padrão, `control` opcional) escolhe a tecla de `1` a `9`, e o escopo de foco do shell guarda o foco quando a tela some.
+* `bottomBarVisible` nos dois scaffolds: `false` recolhe a barra inferior (por exemplo, enquanto o cabeçalho de leitura está escondido).
+* `AppTheme.light/dark` aceitam `extensions` (extensões de tema de outras bibliotecas) e `fontFamily`.
+
+**Quebra:** `AppTextTheme.textTheme` (Poppins/Inter via `google_fonts`) vira `AppTextTheme.build(headingFamily:, bodyFamily:)` e a dependência `google_fonts` sai do pacote: o app empacota a fonte, o pacote não baixa nada em tempo de execução. Nenhum consumidor conhecido usava o getter.
 
 **Descontinuado:** `AppColors.primaryLight`, `success`, `warning`, `danger`.
 

@@ -20,22 +20,25 @@
 /// ==============================================
 
 import 'package:material_ui/material_ui.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-/// Titles in Poppins, body in Inter. No color is set here so the active
-/// `ColorScheme` (light or dark) decides it.
+/// Text theme with titles and body in the font families the app supplies
+/// (bundled by the app: the package fetches nothing at runtime). No color is
+/// set here so the active `ColorScheme` (light or dark) decides it.
 class AppTextTheme {
-  static TextTheme get textTheme {
+  static TextTheme build({String? headingFamily, String? bodyFamily}) {
     return TextTheme(
-      displayLarge: GoogleFonts.poppins(
+      displayLarge: TextStyle(
+        fontFamily: headingFamily,
         fontSize: 32,
         fontWeight: FontWeight.bold,
       ),
-      displayMedium: GoogleFonts.poppins(
+      displayMedium: TextStyle(
+        fontFamily: headingFamily,
         fontSize: 40,
         fontWeight: FontWeight.w400,
       ),
-      bodyMedium: GoogleFonts.inter(
+      bodyMedium: TextStyle(
+        fontFamily: bodyFamily,
         fontSize: 16,
         fontWeight: FontWeight.normal,
       ),
