@@ -318,6 +318,46 @@ void main() {
         );
       });
 
+      testWidgets('label follows the icon color, bar and rail ($mode)', (
+        tester,
+      ) async {
+        final scheme = theme.colorScheme;
+        final grey = Color.alphaBlend(
+          scheme.onSurface.withValues(alpha: 0.68),
+          scheme.surfaceContainer,
+        );
+        _size(tester, const Size(400, 800));
+        await tester.pumpWidget(_app(_scaffold(index: 1), theme: theme));
+        await tester.pumpAndSettle();
+        Color? barLabel(String t) => tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byType(ScrollableBottomNavBar),
+                matching: find.text(t),
+              ),
+            )
+            .style
+            ?.color;
+        expect(barLabel('Search'), scheme.onSurface);
+        expect(barLabel('Home'), grey);
+
+        _size(tester, const Size(900, 600));
+        await tester.pumpWidget(_app(_scaffold(index: 1), theme: theme));
+        await tester.pumpAndSettle();
+        Color? railLabel(String t) {
+          final ctx = tester.element(
+            find.descendant(
+              of: find.byType(NavigationRail),
+              matching: find.text(t),
+            ),
+          );
+          return DefaultTextStyle.of(ctx).style.color;
+        }
+
+        expect(railLabel('Search'), scheme.onSurface);
+        expect(railLabel('Home'), grey);
+      });
+
       test('inactive grey is legible and dimmer than active ($mode)', () {
         final c = theme.colorScheme;
         final inactive = Color.alphaBlend(
