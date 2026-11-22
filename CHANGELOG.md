@@ -27,6 +27,8 @@ Revisão de UI/UX e acessibilidade (`docs/ui-ux-review.md`).
 * `bottomBarVisible` nos dois scaffolds: `false` recolhe a barra inferior (por exemplo, enquanto o cabeçalho de leitura está escondido).
 * `AppTheme.light/dark` aceitam `extensions` (extensões de tema de outras bibliotecas) e `fontFamily`.
 
+* Interno: o arquivo de 991 linhas dos scaffolds foi dividido em `lib/src/layouts/` (item, breakpoints, atalhos, rail e corpo, barra inferior, e um arquivo por scaffold). A API pública exportada por `pillar_ui.dart` não mudou.
+
 **Quebra:** `AppTextTheme.textTheme` (Poppins/Inter via `google_fonts`) vira `AppTextTheme.build(headingFamily:, bodyFamily:)` e a dependência `google_fonts` sai do pacote: o app empacota a fonte, o pacote não baixa nada em tempo de execução. Nenhum consumidor conhecido usava o getter.
 
 **Descontinuado:** `AppColors.primaryLight`, `success`, `warning`, `danger`.
