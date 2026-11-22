@@ -24,6 +24,9 @@ library;
 export './src/themes/app_theme.dart';
 export './src/themes/app_colors.dart';
 export './src/themes/app_text_theme.dart';
+export './src/themes/app_spacing.dart';
+export './src/themes/app_motion.dart';
+export './src/themes/status_colors.dart';
 
 export './src/widgets/deferred_widget.dart';
 export './src/widgets/error_container_widget.dart';

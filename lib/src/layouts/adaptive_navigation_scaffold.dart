@@ -20,7 +20,11 @@
 /// ==============================================
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
+
+import '../themes/app_motion.dart';
+import '../widgets/focus_ring.dart';
 
 /// Permite arrastar com MOUSE pra rolar (achado real, 2026-07-27) - o
 /// `ScrollBehavior` padrão do Flutter só aceita drag por toque/caneta, não
@@ -47,6 +51,57 @@ class _MouseDragScrollBehavior extends MaterialScrollBehavior {
 /// [fontSize] `null` mantém o tamanho padrão do Material.
 TextStyle estiloRotuloDoRail(double? fontSize) =>
     TextStyle(fontSize: fontSize, fontWeight: FontWeight.w400);
+
+/// Material "medium" window class starts at 600 dp: from there navigation is
+/// a rail, below it a bottom bar. Decided by width, never by orientation.
+const double kDefaultRailBreakpoint = 600;
+
+/// Alt+1 .. Alt+9 jump to the first nine destinations. A focus anchor keeps
+/// the shortcuts live when nothing else holds focus. Alt (not Ctrl) because
+/// browsers reserve Ctrl+digit for their own tabs.
+class _NavShortcuts extends StatelessWidget {
+  const _NavShortcuts({
+    required this.enabled,
+    required this.itemCount,
+    required this.onIndexChanged,
+    required this.child,
+  });
+
+  final bool enabled;
+  final int itemCount;
+  final ValueChanged<int> onIndexChanged;
+  final Widget child;
+
+  static const _digits = [
+    LogicalKeyboardKey.digit1,
+    LogicalKeyboardKey.digit2,
+    LogicalKeyboardKey.digit3,
+    LogicalKeyboardKey.digit4,
+    LogicalKeyboardKey.digit5,
+    LogicalKeyboardKey.digit6,
+    LogicalKeyboardKey.digit7,
+    LogicalKeyboardKey.digit8,
+    LogicalKeyboardKey.digit9,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) return child;
+    return CallbackShortcuts(
+      bindings: {
+        for (var i = 0; i < _digits.length && i < itemCount; i++)
+          SingleActivator(_digits[i], alt: true): () => onIndexChanged(i),
+      },
+      child: Focus(autofocus: true, skipTraversal: true, child: child),
+    );
+  }
+}
+
+bool _showRail(BuildContext context, double breakpoint) =>
+    MediaQuery.sizeOf(context).width >= breakpoint;
+
+bool _extendedRail(BuildContext context, double? breakpoint) =>
+    breakpoint != null && MediaQuery.sizeOf(context).width >= breakpoint;
 
 class AdaptiveNavigationItem {
   final IconData icon;
@@ -146,6 +201,16 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// (72).
   final double? navRailMinWidth;
 
+  /// Window width (dp) from which the rail replaces the bottom bar.
+  final double railBreakpoint;
+
+  /// Window width (dp) from which the rail shows icon and label side by
+  /// side. `null` (default) keeps the narrow rail at every width.
+  final double? extendedRailBreakpoint;
+
+  /// Alt+1 .. Alt+9 select the first nine destinations.
+  final bool enableKeyboardShortcuts;
+
   const AdaptiveNavigationScaffold({
     super.key,
     required this.items,
@@ -164,6 +229,9 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
     this.navRailLabelMaxWidth,
     this.navLabelFontSize,
     this.navRailMinWidth,
+    this.railBreakpoint = kDefaultRailBreakpoint,
+    this.extendedRailBreakpoint,
+    this.enableKeyboardShortcuts = true,
   });
 
   /// Compartilhado entre paisagem/retrato (antes duplicado, 1 `AppBar`
@@ -177,8 +245,6 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
       actions: actions,
     );
   }
-
-  static const _duracaoTransicaoChrome = Duration(milliseconds: 300);
 
   /// Achado real do usuário (2026-08-17): "troco a orientação -> clico
   /// em voltar, da erro sem log" - stack real capturado: "There are
@@ -202,54 +268,59 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// item ativo em nenhum momento da transição.
   @override
   Widget build(BuildContext context) {
-    final bool isLandscape =
-        MediaQuery.of(context).size.width > MediaQuery.of(context).size.height;
+    final bool showRail = _showRail(context, railBreakpoint);
     final resolvedHighlight = highlightIndex ?? currentIndex;
+    final dur = AppMotion.duration(context, AppMotion.long);
 
-    return Scaffold(
-      appBar: _buildAppBar(),
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AnimatedSize(
-            duration: _duracaoTransicaoChrome,
-            curve: Curves.easeInOut,
-            child: AnimatedOpacity(
-              duration: _duracaoTransicaoChrome,
-              opacity: isLandscape ? 1 : 0,
-              child: isLandscape
-                  ? _buildNavigationRail(context, resolvedHighlight)
+    return _NavShortcuts(
+      enabled: enableKeyboardShortcuts,
+      itemCount: items.length,
+      onIndexChanged: onIndexChanged,
+      child: Scaffold(
+        appBar: _buildAppBar(),
+        body: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AnimatedSizeOrCut(
+              duration: dur,
+              curve: AppMotion.standard,
+              child: AnimatedOpacity(
+                duration: dur,
+                opacity: showRail ? 1 : 0,
+                child: showRail
+                    ? _buildNavigationRail(context, resolvedHighlight)
+                    : const SizedBox.shrink(),
+              ),
+            ),
+            AnimatedSizeOrCut(
+              duration: dur,
+              curve: AppMotion.standard,
+              child: showRail
+                  ? const VerticalDivider(thickness: 1, width: 1)
                   : const SizedBox.shrink(),
             ),
-          ),
-          AnimatedSize(
-            duration: _duracaoTransicaoChrome,
-            curve: Curves.easeInOut,
-            child: isLandscape
-                ? const VerticalDivider(thickness: 1, width: 1)
-                : const SizedBox.shrink(),
-          ),
-          Expanded(child: _buildAnimatedContent()),
-        ],
+            Expanded(child: _buildAnimatedContent(context)),
+          ],
+        ),
+        bottomNavigationBar: AnimatedSizeOrCut(
+          duration: dur,
+          curve: AppMotion.standard,
+          alignment: Alignment.topCenter,
+          child: showRail
+              ? const SizedBox.shrink()
+              : ScrollableBottomNavBar(
+                  items: items,
+                  currentIndex: resolvedHighlight,
+                  onIndexChanged: onIndexChanged,
+                  leading: navLeading,
+                  barHeight: navBarHeight,
+                  iconPadding: navBarIconPadding,
+                  labelGap: navBarLabelGap,
+                  labelFontSize: navLabelFontSize,
+                ),
+        ),
+        floatingActionButton: floatingActionButton,
       ),
-      bottomNavigationBar: AnimatedSize(
-        duration: _duracaoTransicaoChrome,
-        curve: Curves.easeInOut,
-        alignment: Alignment.topCenter,
-        child: isLandscape
-            ? const SizedBox.shrink()
-            : ScrollableBottomNavBar(
-                items: items,
-                currentIndex: resolvedHighlight,
-                onIndexChanged: onIndexChanged,
-                leading: navLeading,
-                barHeight: navBarHeight,
-                iconPadding: navBarIconPadding,
-                labelGap: navBarLabelGap,
-                labelFontSize: navLabelFontSize,
-              ),
-      ),
-      floatingActionButton: floatingActionButton,
     );
   }
 
@@ -278,7 +349,10 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
               onDestinationSelected: onIndexChanged,
               leading: navLeading,
               minWidth: navRailMinWidth,
-              labelType: NavigationRailLabelType.all,
+              extended: _extendedRail(context, extendedRailBreakpoint),
+              labelType: _extendedRail(context, extendedRailBreakpoint)
+                  ? NavigationRailLabelType.none
+                  : NavigationRailLabelType.all,
               // Ativa o visual Material 3 no Rail
               useIndicator: true,
               indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
@@ -322,9 +396,9 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
     );
   }
 
-  Widget _buildAnimatedContent() {
+  Widget _buildAnimatedContent(BuildContext context) {
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
+      duration: AppMotion.duration(context, AppMotion.long),
       transitionBuilder: (child, animation) {
         return FadeTransition(
           opacity: animation,
@@ -362,6 +436,16 @@ class ShellNavigationScaffold extends StatelessWidget {
   final double? navLabelFontSize;
   final double? navRailMinWidth;
 
+  /// Window width (dp) from which the rail replaces the bottom bar.
+  final double railBreakpoint;
+
+  /// Window width (dp) from which the rail shows icon and label side by
+  /// side. `null` (default) keeps the narrow rail at every width.
+  final double? extendedRailBreakpoint;
+
+  /// Alt+1 .. Alt+9 select the first nine destinations.
+  final bool enableKeyboardShortcuts;
+
   const ShellNavigationScaffold({
     super.key,
     required this.navigationShell,
@@ -374,16 +458,17 @@ class ShellNavigationScaffold extends StatelessWidget {
     this.navRailLabelMaxWidth,
     this.navLabelFontSize,
     this.navRailMinWidth,
+    this.railBreakpoint = kDefaultRailBreakpoint,
+    this.extendedRailBreakpoint,
+    this.enableKeyboardShortcuts = true,
   });
-
-  static const _duracaoTransicao = Duration(milliseconds: 280);
 
   TextStyle get _estiloLabelRail => estiloRotuloDoRail(navLabelFontSize);
 
   @override
   Widget build(BuildContext context) {
-    final bool isLandscape =
-        MediaQuery.of(context).size.width > MediaQuery.of(context).size.height;
+    final bool showRail = _showRail(context, railBreakpoint);
+    final dur = AppMotion.duration(context, AppMotion.medium);
 
     // Achado real (2026-08-07, pedido do usuário): a troca landscape/
     // portrait não tinha NENHUMA animação (corte seco, `if`/`return`
@@ -396,88 +481,112 @@ class ShellNavigationScaffold extends StatelessWidget {
     // SEMPRE montado 1x só (`Expanded` fixo dentro do `Row`) - só o
     // "chrome" ao redor (Rail à esquerda, bottom nav embaixo) anima
     // tamanho/opacidade via `AnimatedSize`/`AnimatedOpacity`.
-    return Scaffold(
-      body: Row(
-        children: [
-          AnimatedSize(
-            duration: _duracaoTransicao,
-            curve: Curves.easeInOut,
-            child: AnimatedOpacity(
-              duration: _duracaoTransicao,
-              opacity: isLandscape ? 1 : 0,
-              child: isLandscape
-                  // `LayoutBuilder` + `ConstrainedBox(minHeight)` (fix
-                  // anterior, 2026-08-07) mantém o Rail esticado do topo
-                  // ao fim quando cabe e rola quando não cabe.
-                  ? LayoutBuilder(
-                      builder: (context, constraints) => SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight,
-                          ),
-                          child: IntrinsicHeight(
-                            child: NavigationRail(
-                              selectedIndex: currentIndex,
-                              onDestinationSelected: onIndexChanged,
-                              minWidth: navRailMinWidth,
-                              labelType: NavigationRailLabelType.all,
-                              useIndicator: true,
-                              indicatorColor: Theme.of(
-                                context,
-                              ).colorScheme.secondaryContainer,
-                              destinations: items
-                                  .map(
-                                    (item) => NavigationRailDestination(
-                                      icon: _iconeDoItem(item),
-                                      label: navRailLabelMaxWidth == null
-                                          ? Text(item.label, style: _estiloLabelRail)
-                                          : ConstrainedBox(
-                                              constraints: BoxConstraints(maxWidth: navRailLabelMaxWidth!),
-                                              child: Text(
-                                                item.label,
-                                                style: _estiloLabelRail,
-                                                textAlign: TextAlign.center,
-                                                maxLines: 2,
-                                                softWrap: true,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
+    return _NavShortcuts(
+      enabled: enableKeyboardShortcuts,
+      itemCount: items.length,
+      onIndexChanged: onIndexChanged,
+      child: Scaffold(
+        body: Row(
+          children: [
+            AnimatedSizeOrCut(
+              duration: dur,
+              curve: AppMotion.standard,
+              child: AnimatedOpacity(
+                duration: dur,
+                opacity: showRail ? 1 : 0,
+                child: showRail
+                    // `LayoutBuilder` + `ConstrainedBox(minHeight)` (fix
+                    // anterior, 2026-08-07) mantém o Rail esticado do topo
+                    // ao fim quando cabe e rola quando não cabe.
+                    ? LayoutBuilder(
+                        builder: (context, constraints) =>
+                            SingleChildScrollView(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: constraints.maxHeight,
+                                ),
+                                child: IntrinsicHeight(
+                                  child: NavigationRail(
+                                    selectedIndex: currentIndex,
+                                    onDestinationSelected: onIndexChanged,
+                                    minWidth: navRailMinWidth,
+                                    extended: _extendedRail(
+                                      context,
+                                      extendedRailBreakpoint,
                                     ),
-                                  )
-                                  .toList(),
+                                    labelType:
+                                        _extendedRail(
+                                          context,
+                                          extendedRailBreakpoint,
+                                        )
+                                        ? NavigationRailLabelType.none
+                                        : NavigationRailLabelType.all,
+                                    useIndicator: true,
+                                    indicatorColor: Theme.of(
+                                      context,
+                                    ).colorScheme.secondaryContainer,
+                                    destinations: items
+                                        .map(
+                                          (item) => NavigationRailDestination(
+                                            icon: _iconeDoItem(item),
+                                            label: navRailLabelMaxWidth == null
+                                                ? Text(
+                                                    item.label,
+                                                    style: _estiloLabelRail,
+                                                  )
+                                                : ConstrainedBox(
+                                                    constraints: BoxConstraints(
+                                                      maxWidth:
+                                                          navRailLabelMaxWidth!,
+                                                    ),
+                                                    child: Text(
+                                                      item.label,
+                                                      style: _estiloLabelRail,
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      maxLines: 2,
+                                                      softWrap: true,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ),
-                    )
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+            AnimatedSizeOrCut(
+              duration: dur,
+              curve: AppMotion.standard,
+              child: showRail
+                  ? const VerticalDivider(thickness: 1, width: 1)
                   : const SizedBox.shrink(),
             ),
-          ),
-          AnimatedSize(
-            duration: _duracaoTransicao,
-            curve: Curves.easeInOut,
-            child: isLandscape
-                ? const VerticalDivider(thickness: 1, width: 1)
-                : const SizedBox.shrink(),
-          ),
-          Expanded(child: navigationShell),
-        ],
-      ),
-      bottomNavigationBar: AnimatedSize(
-        duration: _duracaoTransicao,
-        curve: Curves.easeInOut,
-        alignment: Alignment.topCenter,
-        child: isLandscape
-            ? const SizedBox.shrink()
-            : ScrollableBottomNavBar(
-                items: items,
-                currentIndex: currentIndex,
-                onIndexChanged: onIndexChanged,
-                barHeight: navBarHeight,
-                iconPadding: navBarIconPadding,
-                labelGap: navBarLabelGap,
-                labelFontSize: navLabelFontSize,
-              ),
+            Expanded(child: navigationShell),
+          ],
+        ),
+        bottomNavigationBar: AnimatedSizeOrCut(
+          duration: dur,
+          curve: AppMotion.standard,
+          alignment: Alignment.topCenter,
+          child: showRail
+              ? const SizedBox.shrink()
+              : ScrollableBottomNavBar(
+                  items: items,
+                  currentIndex: currentIndex,
+                  onIndexChanged: onIndexChanged,
+                  barHeight: navBarHeight,
+                  iconPadding: navBarIconPadding,
+                  labelGap: navBarLabelGap,
+                  labelFontSize: navLabelFontSize,
+                ),
+        ),
       ),
     );
   }
@@ -568,8 +677,8 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
         .clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController.animateTo(
       alvo,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
+      duration: AppMotion.duration(context, AppMotion.short),
+      curve: AppMotion.emphasized,
     );
   }
 
@@ -579,9 +688,20 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
     super.dispose();
   }
 
+  late double _altura = widget.barHeight;
+
+  /// Grows the bar with the user's text scale so the label never clips
+  /// (the extra is the label's own growth).
+  double _alturaEfetiva(BuildContext context) {
+    final base = widget.labelFontSize;
+    return widget.barHeight +
+        (MediaQuery.textScalerOf(context).scale(base) - base);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    _altura = _alturaEfetiva(context);
 
     return Material(
       color: theme.colorScheme.surfaceContainer,
@@ -589,7 +709,7 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: widget.barHeight,
+          height: _altura,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final n = widget.items.length;
@@ -708,7 +828,7 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
 
   Widget _buildLeading() => SizedBox(
     width: ScrollableBottomNavBar._larguraItem,
-    height: widget.barHeight,
+    height: _altura,
     child: widget.leading,
   );
 
@@ -734,13 +854,16 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
     // "pill" padrão Material 3 - inconsistente entre os 2. Padronizado
     // pro mesmo visual do Rail.
     final conteudo = SizedBox(
-      height: widget.barHeight,
+      height: _altura,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: widget.iconPadding),
+            duration: AppMotion.duration(context, AppMotion.short),
+            padding: EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: widget.iconPadding,
+            ),
             decoration: BoxDecoration(
               color: selecionado
                   ? theme.colorScheme.secondaryContainer
@@ -753,7 +876,10 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
             SizedBox(height: widget.labelGap),
             Text(
               item.label,
-              style: TextStyle(fontSize: widget.labelFontSize, color: corConteudo),
+              style: TextStyle(
+                fontSize: widget.labelFontSize,
+                color: corConteudo,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -765,9 +891,23 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
     // Tooltip (hover no desktop/web, long-press no touch) - mais importante
     // ainda quando `mostrarTexto: false` (modo compacto ícone-só), mas
     // ajuda em qualquer modo.
-    return Tooltip(
-      message: item.label,
-      child: InkWell(onTap: onTap, child: conteudo),
+    return Semantics(
+      button: true,
+      selected: selecionado,
+      child: Tooltip(
+        message: item.label,
+        excludeFromSemantics: true,
+        child: FocusRing(
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: onTap,
+            child: Semantics(
+              label: mostrarTexto ? null : item.label,
+              child: conteudo,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

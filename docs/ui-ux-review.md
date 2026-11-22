@@ -41,3 +41,9 @@ Um PR só, em fatias: (1) tema simétrico e sem cor fixa (achado 2, 9, 10); (2) 
 
 ## Como isso foi repassado
 Ver a skill `ui-ux-pillars` e as mudanças em `developer.md` do perfil pillar-ui, descritas na resposta da thread.
+
+## Estado em 2026-11-22 (após as correções no PR do pillar_ui)
+
+Corrigidos, com teste (36 testes passam no Flutter 3.50.1, `flutter analyze` sem avisos novos): 1 (aba do drawer: nome, expandido, 48 dp, foco), 2 (tema simétrico, sem `Colors.black`), 3 (`onErrorContainer`, `bodySmall`, região viva, `onRetry`), 4 (breakpoint por largura, 600 dp), 5 (rail estendido opt-in por `extendedRailBreakpoint`; a regra de "3 ou mais destinos" não foi aplicada), 6 (movimento reduzido), 7 (barra cresce com a fonte; testado a 200%), 8 (item anuncia selecionado), 9 (Poppins + Inter), 10 (`StatusColors`, constantes antigas marcadas `@Deprecated`), 11 (`AppSpacing`).
+Teclado e atalhos (pedido posterior): Tab, setas, Enter/Espaço, anel de foco só por teclado, Alt+1..9.
+Não feitos: 12 (comentários históricos em português só mudam quando o arquivo é tocado), 13 parcial (novos testes de tema, erro, drawer e navegação; falta teste do `ShellNavigationScaffold` com teclado) e a validação visual em dispositivo (nada foi rodado em tela).

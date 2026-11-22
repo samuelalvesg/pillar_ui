@@ -34,6 +34,13 @@ mais de um app.
 - **`DeferredWidget`** - wrapper pra carregamento tardio de telas
   pesadas (`deferred as`), reduz o bundle inicial.
 
+## Acessibilidade e teclado
+
+- `Tab` percorre a barra inferior ou o rail, as setas movem o foco entre os destinos, `Enter` e `Espaço` ativam; o anel de foco aparece só na navegação por teclado.
+- `Alt+1` a `Alt+9` selecionam os nove primeiros destinos (`enableKeyboardShortcuts: false` desliga). `Alt`, e não `Ctrl`, porque os navegadores reservam `Ctrl+número`.
+- Textos de tooltip e de ação (`toggleTooltip` do drawer, `retryLabel` do erro) vêm do app: o pacote não fixa idioma.
+- Com "reduzir movimento" ligado no sistema, as transições viram corte seco.
+
 ## Uso
 
 Dependência git (sem publicação no pub.dev ainda):

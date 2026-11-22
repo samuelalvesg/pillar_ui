@@ -1,48 +1,44 @@
 /// ==============================================
 /// Symmetris - Plataforma Multiutilidades
 /// ==============================================
-/// 
+///
 /// Arquivo: app_text_theme.dart
 /// Módulo: Packages / UI
-/// Descrição: 
-/// 
+/// Descrição:
+///
 /// Autor: Equipe Symmetris
 /// Criado: 25/04/2026
 /// Última Modificação: 25/04/2026
-/// 
+///
 /// Dependências:
-/// 
+///
 /// Premissas:
-///   ✅ 
-/// 
+///   ✅
+///
 /// Edge Cases Conhecidos:
-///   ⚠️ 
+///   ⚠️
 /// ==============================================
 
 import 'package:material_ui/material_ui.dart';
-import 'package:google_fonts/google_fonts.dart'; // Opcional, mas comum
+import 'package:google_fonts/google_fonts.dart';
 
+/// Titles in Poppins, body in Inter. No color is set here so the active
+/// `ColorScheme` (light or dark) decides it.
 class AppTextTheme {
   static TextTheme get textTheme {
     return TextTheme(
-      displayMedium: TextStyle(
-        fontSize: 40,
-        fontWeight: FontWeight.w400,
-        fontFamily: 'Roboto',
-        // Não defina 'color' aqui! Deixe o Theme gerenciar para o Dark Mode funcionar.
-      ),
-
       displayLarge: GoogleFonts.poppins(
         fontSize: 32,
         fontWeight: FontWeight.bold,
-        color: Colors
-            .black, // O Flutter vai ajustar isso no dark mode se usarmos ColorScheme
+      ),
+      displayMedium: GoogleFonts.poppins(
+        fontSize: 40,
+        fontWeight: FontWeight.w400,
       ),
       bodyMedium: GoogleFonts.inter(
         fontSize: 16,
         fontWeight: FontWeight.normal,
       ),
-      // Adicione outros estilos conforme a necessidade do design
     );
   }
 }
