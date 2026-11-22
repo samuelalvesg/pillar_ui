@@ -1,3 +1,38 @@
+## 0.1.0-alpha.2
+
+Revisão de UI/UX e acessibilidade (`docs/ui-ux-review.md`).
+
+**Mudanças que alteram o comportamento visível**
+
+* Rail ou barra inferior passa a ser decidido pela **largura** (`railBreakpoint`, padrão 600 dp), não pela orientação. Um tablet em retrato agora usa o rail; uma janela estreita e baixa usa a barra.
+* `AppTheme.light` e `AppTheme.dark` usam o mesmo caminho (`ColorScheme.fromSeed` com `brightness`); o claro deixa de trocar `surface` por `Colors.grey[50]`.
+* `AppTextTheme`: sem `color` fixo (o `displayLarge` preto quebrava o modo escuro), títulos e corpo na família que o app informar.
+* `ErrorContainerWidget`: texto e ícone em `onErrorContainer`, estilo `bodySmall` do tema, região viva para leitor de tela.
+* `CollapsibleEdgeDrawer`: aba de 48 dp (era 40) e ícone de 20.
+* A barra inferior cresce com a escala de fonte do usuário.
+* O destino ativo deixa de ter a pílula: a seleção é só cor, ícone e rótulo em `onSurface` (branco no escuro, preto no claro) e os inativos num cinza (`onSurface` a 68% sobre a superfície, contraste ≥ 4,5:1). O rail também (`useIndicator: false`). O estado continua no leitor de tela (`selected`).
+
+**Novo (aditivo)**
+
+* `extendedRailBreakpoint` nos dois scaffolds: rail com ícone e rótulo lado a lado a partir dessa largura (padrão `null`: rail estreito).
+* Teclado: `Tab` percorre a barra e o rail, setas movem o foco, `Enter`/`Espaço` ativam, anel de foco visível só por teclado, `Alt+1` a `Alt+9` selecionam os 9 primeiros destinos (`enableKeyboardShortcuts`, padrão `true`).
+* Semântica: item da barra inferior anuncia nome, botão e selecionado; aba do drawer anuncia nome (`toggleTooltip`), botão e expandido.
+* `ErrorContainerWidget`: `onRetry` + `retryLabel` opcionais.
+* Movimento reduzido: `AppMotion.duration` zera as animações quando o sistema pede; `AnimatedSizeOrCut` evita a asserção do `AnimatedSize` com duração zero.
+* Tokens: `AppSpacing`, `AppMotion`, `StatusColors` (sucesso e aviso com par `on*`, contraste ≥ 4,5:1).
+
+* `ShellNavigationScaffold` passa a usar o mesmo rail do `AdaptiveNavigationScaffold` (internamente um só widget): ganha tooltip nos ícones do rail, `extendedRailBreakpoint`, `railBreakpoint` e os atalhos de teclado.
+
+* Atalhos (levados do Bible With Me): `Ctrl+Tab` / `Ctrl+Shift+Tab` ciclam os destinos com volta, `shortcutModifier` (`alt` por padrão, `control` opcional) escolhe a tecla de `1` a `9`, e o escopo de foco do shell guarda o foco quando a tela some.
+* `bottomBarVisible` nos dois scaffolds: `false` recolhe a barra inferior (por exemplo, enquanto o cabeçalho de leitura está escondido).
+* `AppTheme.light/dark` aceitam `extensions` (extensões de tema de outras bibliotecas) e `fontFamily`.
+
+* Interno: o arquivo de 991 linhas dos scaffolds foi dividido em `lib/src/layouts/` (item, breakpoints, atalhos, rail e corpo, barra inferior, e um arquivo por scaffold). A API pública exportada por `pillar_ui.dart` não mudou.
+
+**Quebra:** `AppTextTheme.textTheme` (Poppins/Inter via `google_fonts`) vira `AppTextTheme.build(headingFamily:, bodyFamily:)` e a dependência `google_fonts` sai do pacote: o app empacota a fonte, o pacote não baixa nada em tempo de execução. Nenhum consumidor conhecido usava o getter.
+
+**Descontinuado:** `AppColors.primaryLight`, `success`, `warning`, `danger`.
+
 ## 0.1.0-alpha.1
 
 * Migra de `flutter/material` para `material_ui` (Flutter 3.50). Quem usa o pacote precisa do Flutter 3.50 e passa a receber o `ThemeData` do `material_ui`.

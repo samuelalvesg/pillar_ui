@@ -1,6 +1,6 @@
 name: pillar_ui
 description: "Componentes de UI Flutter compartilhados entre os apps do ecossistema pillar_* (navegação responsiva, tema padrão, widgets utilitários)."
-version: 0.1.0-alpha.1
+version: 0.1.0-alpha.2
 homepage: https://github.com/samuelalvesg/pillar_ui
 
 environment:
@@ -12,7 +12,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  google_fonts: ">=8.0.2 <10.0.0"
   material_ui: ^1.11.0
 
 dev_dependencies:

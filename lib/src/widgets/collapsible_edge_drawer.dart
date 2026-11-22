@@ -21,6 +21,9 @@
 
 import 'package:material_ui/material_ui.dart';
 
+import '../themes/app_motion.dart';
+import 'focus_ring.dart';
+
 /// De qual borda o [CollapsibleEdgeDrawer] nasce - espelha a ordem
 /// dos filhos do `Row` interno (conteúdo/aba/divisor).
 enum DrawerSide { left, right }
@@ -38,13 +41,10 @@ class CollapsibleEdgeDrawer extends StatelessWidget {
     required this.child,
     this.side = DrawerSide.left,
     this.width = 200,
-    // 40 (não 20) - achado real do usuário (2026-08-14): "sleeves são
-    // muito pequenas pra serem clicadas, ou touch" - alvo de toque
-    // mínimo recomendado (~44px Material/iOS), 20px ficava bem abaixo
-    // disso.
-    this.tabWidth = 40,
+    this.tabWidth = 48,
     this.showDivider = true,
     this.collapseTabKey,
+    this.toggleTooltip,
   });
 
   final bool isOpen;
@@ -65,16 +65,22 @@ class CollapsibleEdgeDrawer extends StatelessWidget {
 
   final Key? collapseTabKey;
 
+  /// Accessible name and tooltip of the edge tab. Supplied by the caller so
+  /// the package fixes no language; without it the tab has no spoken name.
+  final String? toggleTooltip;
+
   @override
   Widget build(BuildContext context) {
     final content = ClipRect(
-      child: AnimatedSize(
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeInOut,
+      child: AnimatedSizeOrCut(
+        duration: AppMotion.duration(context, AppMotion.medium),
+        curve: AppMotion.standard,
         alignment: side == DrawerSide.left
             ? Alignment.centerLeft
             : Alignment.centerRight,
-        child: isOpen ? SizedBox(width: width, child: child) : const SizedBox(width: 0),
+        child: isOpen
+            ? SizedBox(width: width, child: child)
+            : const SizedBox(width: 0),
       ),
     );
     final tab = _CollapseTab(
@@ -82,6 +88,7 @@ class CollapsibleEdgeDrawer extends StatelessWidget {
       isOpen: isOpen,
       side: side,
       width: tabWidth,
+      tooltip: toggleTooltip,
       onTap: onToggleOpen,
     );
     final divider = showDivider ? const VerticalDivider(width: 1) : null;
@@ -103,12 +110,14 @@ class _CollapseTab extends StatelessWidget {
     required this.side,
     required this.width,
     required this.onTap,
+    this.tooltip,
   });
 
   final bool isOpen;
   final DrawerSide side;
   final double width;
   final VoidCallback onTap;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -122,14 +131,24 @@ class _CollapseTab extends StatelessWidget {
         ? Icons.chevron_right
         : Icons.chevron_left;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: width,
-        alignment: Alignment.center,
-        color: Theme.of(context).colorScheme.surfaceContainerHigh,
-        child: Icon(isOpen ? openIcon : closedIcon, size: 16),
+    final tab = Semantics(
+      button: true,
+      expanded: isOpen,
+      label: tooltip,
+      child: FocusRing(
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            width: width,
+            alignment: Alignment.center,
+            color: Theme.of(context).colorScheme.surfaceContainerHigh,
+            child: Icon(isOpen ? openIcon : closedIcon, size: 20),
+          ),
+        ),
       ),
     );
+    return tooltip == null
+        ? tab
+        : Tooltip(message: tooltip!, excludeFromSemantics: true, child: tab);
   }
 }

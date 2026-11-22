@@ -1,78 +1,11 @@
-/// ==============================================
-/// Symmetris - Plataforma Multiutilidades
-/// ==============================================
-///
-/// Arquivo: adaptive_navigation_scaffold.dart
-/// Módulo: Packages / UI
-/// Descrição:
-///
-/// Autor: Equipe Symmetris
-/// Criado: 25/04/2026
-/// Última Modificação: 25/04/2026
-///
-/// Dependências:
-///
-/// Premissas:
-///   ✅
-///
-/// Edge Cases Conhecidos:
-///   ⚠️
-/// ==============================================
-
-import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Permite arrastar com MOUSE pra rolar (achado real, 2026-07-27) - o
-/// `ScrollBehavior` padrão do Flutter só aceita drag por toque/caneta, não
-/// mouse, em Web/Desktop. Sem isso, `ScrollableBottomNavBar` (abaixo) rola
-/// certinho no celular mas parece "quebrada" no navegador/desktop - os
-/// itens que não cabem ficam inacessíveis, sem barra de rolagem visível
-/// nem jeito de arrastar com o mouse pra alcançar.
-class _MouseDragScrollBehavior extends MaterialScrollBehavior {
-  @override
-  Set<PointerDeviceKind> get dragDevices => {
-    ...super.dragDevices,
-    PointerDeviceKind.mouse,
-  };
-}
-
-/// Estilo do rótulo dos destinos do `NavigationRail` (barra vertical).
-///
-/// Mesmo peso do rótulo da barra inferior ([ScrollableBottomNavBar]), que é um widget próprio e usa o
-/// peso normal do tema. O `NavigationRail` do Material define o rótulo com `labelMedium` (peso 500) e
-/// o `TextStyle(fontSize: ...)` passado pelo app só é MESCLADO com isso, então o rail ficava com
-/// aparência de negrito enquanto a barra horizontal não (achado do usuário, 2026-09-25). Fixar o peso
-/// aqui - numa função só, usada pelos dois scaffolds - mantém as duas barras iguais.
-///
-/// [fontSize] `null` mantém o tamanho padrão do Material.
-TextStyle estiloRotuloDoRail(double? fontSize) =>
-    TextStyle(fontSize: fontSize, fontWeight: FontWeight.w400);
-
-class AdaptiveNavigationItem {
-  final IconData icon;
-  final String label;
-  final Widget screen;
-
-  /// Contador sobre o ícone (ex.: notificações não lidas). `0` = sem badge.
-  /// Aditivo (2026-09-30): nenhum consumidor existente precisa mudar.
-  final int badgeCount;
-
-  const AdaptiveNavigationItem({
-    required this.icon,
-    required this.label,
-    required this.screen,
-    this.badgeCount = 0,
-  });
-}
-
-/// Ícone do item com o badge de [AdaptiveNavigationItem.badgeCount] quando
-/// > 0 - o MESMO nas 3 formas da barra (rail do layout largo, rail da
-/// paisagem e barra inferior), para o contador não sumir ao girar a tela.
-Widget _iconeDoItem(AdaptiveNavigationItem item, {Color? cor}) {
-  final icone = Icon(item.icon, color: cor);
-  if (item.badgeCount <= 0) return icone;
-  return Badge.count(count: item.badgeCount, child: icone);
-}
+import '../themes/app_motion.dart';
+import 'navigation_breakpoints.dart';
+import 'navigation_chrome.dart';
+import 'navigation_item.dart';
+import 'navigation_shortcuts.dart';
+import 'scrollable_bottom_nav_bar.dart';
 
 class AdaptiveNavigationScaffold extends StatelessWidget {
   final List<AdaptiveNavigationItem> items;
@@ -146,6 +79,24 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// (72).
   final double? navRailMinWidth;
 
+  /// Window width (dp) from which the rail replaces the bottom bar.
+  final double railBreakpoint;
+
+  /// Window width (dp) from which the rail shows icon and label side by
+  /// side. `null` (default) keeps the narrow rail at every width.
+  final double? extendedRailBreakpoint;
+
+  /// Ctrl+Tab / Ctrl+Shift+Tab cycle the destinations and
+  /// [shortcutModifier]+1..9 jump to one of the first nine.
+  final bool enableKeyboardShortcuts;
+
+  /// Modifier of the jump-to-destination shortcuts.
+  final NavigationShortcutModifier shortcutModifier;
+
+  /// `false` collapses the bottom bar (for example while reading, in sync
+  /// with a header that hides). Ignored when the rail is showing.
+  final bool bottomBarVisible;
+
   const AdaptiveNavigationScaffold({
     super.key,
     required this.items,
@@ -164,6 +115,11 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
     this.navRailLabelMaxWidth,
     this.navLabelFontSize,
     this.navRailMinWidth,
+    this.railBreakpoint = kDefaultRailBreakpoint,
+    this.extendedRailBreakpoint,
+    this.enableKeyboardShortcuts = true,
+    this.shortcutModifier = NavigationShortcutModifier.alt,
+    this.bottomBarVisible = true,
   });
 
   /// Compartilhado entre paisagem/retrato (antes duplicado, 1 `AppBar`
@@ -177,8 +133,6 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
       actions: actions,
     );
   }
-
-  static const _duracaoTransicaoChrome = Duration(milliseconds: 300);
 
   /// Achado real do usuário (2026-08-17): "troco a orientação -> clico
   /// em voltar, da erro sem log" - stack real capturado: "There are
@@ -202,129 +156,56 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// item ativo em nenhum momento da transição.
   @override
   Widget build(BuildContext context) {
-    final bool isLandscape =
-        MediaQuery.of(context).size.width > MediaQuery.of(context).size.height;
-    final resolvedHighlight = highlightIndex ?? currentIndex;
+    final showRail = showNavRail(context, railBreakpoint);
+    final highlight = highlightIndex ?? currentIndex;
+    final dur = AppMotion.duration(context, AppMotion.long);
 
-    return Scaffold(
-      appBar: _buildAppBar(),
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AnimatedSize(
-            duration: _duracaoTransicaoChrome,
-            curve: Curves.easeInOut,
-            child: AnimatedOpacity(
-              duration: _duracaoTransicaoChrome,
-              opacity: isLandscape ? 1 : 0,
-              child: isLandscape
-                  ? _buildNavigationRail(context, resolvedHighlight)
-                  : const SizedBox.shrink(),
-            ),
+    return NavShortcuts(
+      enabled: enableKeyboardShortcuts,
+      modifier: shortcutModifier,
+      currentIndex: currentIndex,
+      itemCount: items.length,
+      onIndexChanged: onIndexChanged,
+      child: Scaffold(
+        appBar: _buildAppBar(),
+        body: NavBody(
+          showRail: showRail,
+          duration: dur,
+          rail: NavRail(
+            items: items,
+            selectedIndex: highlight,
+            onSelected: onIndexChanged,
+            extendedBreakpoint: extendedRailBreakpoint,
+            leading: navLeading,
+            minWidth: navRailMinWidth,
+            labelMaxWidth: navRailLabelMaxWidth,
+            labelFontSize: navLabelFontSize,
           ),
-          AnimatedSize(
-            duration: _duracaoTransicaoChrome,
-            curve: Curves.easeInOut,
-            child: isLandscape
-                ? const VerticalDivider(thickness: 1, width: 1)
-                : const SizedBox.shrink(),
-          ),
-          Expanded(child: _buildAnimatedContent()),
-        ],
-      ),
-      bottomNavigationBar: AnimatedSize(
-        duration: _duracaoTransicaoChrome,
-        curve: Curves.easeInOut,
-        alignment: Alignment.topCenter,
-        child: isLandscape
-            ? const SizedBox.shrink()
-            : ScrollableBottomNavBar(
-                items: items,
-                currentIndex: resolvedHighlight,
-                onIndexChanged: onIndexChanged,
-                leading: navLeading,
-                barHeight: navBarHeight,
-                iconPadding: navBarIconPadding,
-                labelGap: navBarLabelGap,
-                labelFontSize: navLabelFontSize,
-              ),
-      ),
-      floatingActionButton: floatingActionButton,
-    );
-  }
-
-  Widget _buildNavigationRail(BuildContext context, int highlight) {
-    // Mesmo achado/fix de `ShellNavigationScaffold` (2026-08-07) -
-    // `NavigationRail` não rola sozinho quando os itens não cabem na
-    // altura disponível. `LayoutBuilder` + `ConstrainedBox(minHeight)`
-    // restaura o comportamento original (Rail esticado do topo ao
-    // fim, achado real do usuário logo após o 1º fix - `IntrinsicHeight`
-    // sozinho tirava o "esticar" e deixava o Rail centralizado/curto)
-    // e ainda rola quando o conteúdo realmente não cabe.
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: IntrinsicHeight(
-            child: NavigationRail(
-              // `NavigationRail` exige `null` (não qualquer inteiro
-              // fora do range) pra "nenhum destino selecionado" -
-              // valores como -1 (usado por quem quer suprimir o
-              // highlight, ver doc de [AdaptiveNavigationScaffold.
-              // highlightIndex]) disparam assert de bounds.
-              selectedIndex: (highlight >= 0 && highlight < items.length)
-                  ? highlight
-                  : null,
-              onDestinationSelected: onIndexChanged,
-              leading: navLeading,
-              minWidth: navRailMinWidth,
-              labelType: NavigationRailLabelType.all,
-              // Ativa o visual Material 3 no Rail
-              useIndicator: true,
-              indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
-              destinations: items
-                  .map(
-                    (item) => NavigationRailDestination(
-                      icon: Tooltip(
-                        message: item.label,
-                        child: _iconeDoItem(item),
-                      ),
-                      label: _buildRailLabel(item.label),
-                    ),
-                  )
-                  .toList(),
-            ),
+          content: _buildAnimatedContent(context),
+        ),
+        bottomNavigationBar: BottomBarSlot(
+          showRail: showRail,
+          visible: bottomBarVisible,
+          duration: dur,
+          bar: ScrollableBottomNavBar(
+            items: items,
+            currentIndex: highlight,
+            onIndexChanged: onIndexChanged,
+            leading: navLeading,
+            barHeight: navBarHeight,
+            iconPadding: navBarIconPadding,
+            labelGap: navBarLabelGap,
+            labelFontSize: navLabelFontSize,
           ),
         ),
+        floatingActionButton: floatingActionButton,
       ),
     );
   }
 
-  /// Sem [navRailLabelMaxWidth], preserva 100% o comportamento original
-  /// (label numa linha só, o Rail alarga conforme o label mais longo). Com
-  /// ele, o texto quebra em até 2 linhas dentro dessa largura em vez de
-  /// alargar o Rail - pedido do usuário (2026-09-03): rail muito largo por
-  /// causa de 1 label comprido.
-  Widget _buildRailLabel(String label) {
-    final maxWidth = navRailLabelMaxWidth;
-    final estilo = estiloRotuloDoRail(navLabelFontSize);
-    if (maxWidth == null) return Text(label, style: estilo);
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      child: Text(
-        label,
-        style: estilo,
-        textAlign: TextAlign.center,
-        maxLines: 2,
-        softWrap: true,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
-  Widget _buildAnimatedContent() {
+  Widget _buildAnimatedContent(BuildContext context) {
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
+      duration: AppMotion.duration(context, AppMotion.long),
       transitionBuilder: (child, animation) {
         return FadeTransition(
           opacity: animation,
@@ -340,434 +221,6 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
         key: ValueKey<int>(currentIndex),
         child: items[currentIndex].screen,
       ),
-    );
-  }
-}
-
-/// Shell de Navegação diretamente integrada ao GoRouter StatefulShellRoute.
-/// Usa [navigationShell] como corpo gerenciado pelo roteador.
-class ShellNavigationScaffold extends StatelessWidget {
-  final Widget navigationShell;
-  final int currentIndex;
-  final ValueChanged<int> onIndexChanged;
-  final List<AdaptiveNavigationItem> items;
-
-  /// Mesmo significado de `AdaptiveNavigationScaffold.navBarHeight`/
-  /// `navBarIconPadding`/`navBarLabelGap`/`navRailLabelMaxWidth` - `null`
-  /// preserva o comportamento original.
-  final double? navBarHeight;
-  final double? navBarIconPadding;
-  final double? navBarLabelGap;
-  final double? navRailLabelMaxWidth;
-  final double? navLabelFontSize;
-  final double? navRailMinWidth;
-
-  const ShellNavigationScaffold({
-    super.key,
-    required this.navigationShell,
-    required this.currentIndex,
-    required this.onIndexChanged,
-    required this.items,
-    this.navBarHeight,
-    this.navBarIconPadding,
-    this.navBarLabelGap,
-    this.navRailLabelMaxWidth,
-    this.navLabelFontSize,
-    this.navRailMinWidth,
-  });
-
-  static const _duracaoTransicao = Duration(milliseconds: 280);
-
-  TextStyle get _estiloLabelRail => estiloRotuloDoRail(navLabelFontSize);
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isLandscape =
-        MediaQuery.of(context).size.width > MediaQuery.of(context).size.height;
-
-    // Achado real (2026-08-07, pedido do usuário): a troca landscape/
-    // portrait não tinha NENHUMA animação (corte seco, `if`/`return`
-    // direto pra 2 `Scaffold`s diferentes). Não dá pra simplesmente
-    // envolver tudo num `AnimatedSwitcher` (como a classe irmã
-    // `AdaptiveNavigationScaffold` faz) - ele manteria as 2 árvores
-    // montadas ao mesmo tempo durante o crossfade, e `navigationShell` (o
-    // Navigator interno do GoRouter, com chave própria persistente)
-    // quebraria duplicado nas duas. Em vez disso, `navigationShell` fica
-    // SEMPRE montado 1x só (`Expanded` fixo dentro do `Row`) - só o
-    // "chrome" ao redor (Rail à esquerda, bottom nav embaixo) anima
-    // tamanho/opacidade via `AnimatedSize`/`AnimatedOpacity`.
-    return Scaffold(
-      body: Row(
-        children: [
-          AnimatedSize(
-            duration: _duracaoTransicao,
-            curve: Curves.easeInOut,
-            child: AnimatedOpacity(
-              duration: _duracaoTransicao,
-              opacity: isLandscape ? 1 : 0,
-              child: isLandscape
-                  // `LayoutBuilder` + `ConstrainedBox(minHeight)` (fix
-                  // anterior, 2026-08-07) mantém o Rail esticado do topo
-                  // ao fim quando cabe e rola quando não cabe.
-                  ? LayoutBuilder(
-                      builder: (context, constraints) => SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight,
-                          ),
-                          child: IntrinsicHeight(
-                            child: NavigationRail(
-                              selectedIndex: currentIndex,
-                              onDestinationSelected: onIndexChanged,
-                              minWidth: navRailMinWidth,
-                              labelType: NavigationRailLabelType.all,
-                              useIndicator: true,
-                              indicatorColor: Theme.of(
-                                context,
-                              ).colorScheme.secondaryContainer,
-                              destinations: items
-                                  .map(
-                                    (item) => NavigationRailDestination(
-                                      icon: _iconeDoItem(item),
-                                      label: navRailLabelMaxWidth == null
-                                          ? Text(item.label, style: _estiloLabelRail)
-                                          : ConstrainedBox(
-                                              constraints: BoxConstraints(maxWidth: navRailLabelMaxWidth!),
-                                              child: Text(
-                                                item.label,
-                                                style: _estiloLabelRail,
-                                                textAlign: TextAlign.center,
-                                                maxLines: 2,
-                                                softWrap: true,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ),
-          AnimatedSize(
-            duration: _duracaoTransicao,
-            curve: Curves.easeInOut,
-            child: isLandscape
-                ? const VerticalDivider(thickness: 1, width: 1)
-                : const SizedBox.shrink(),
-          ),
-          Expanded(child: navigationShell),
-        ],
-      ),
-      bottomNavigationBar: AnimatedSize(
-        duration: _duracaoTransicao,
-        curve: Curves.easeInOut,
-        alignment: Alignment.topCenter,
-        child: isLandscape
-            ? const SizedBox.shrink()
-            : ScrollableBottomNavBar(
-                items: items,
-                currentIndex: currentIndex,
-                onIndexChanged: onIndexChanged,
-                barHeight: navBarHeight,
-                iconPadding: navBarIconPadding,
-                labelGap: navBarLabelGap,
-                labelFontSize: navLabelFontSize,
-              ),
-      ),
-    );
-  }
-}
-
-/// Barra de navegação inferior rolável horizontalmente - substitui o
-/// `NavigationBar` (Material 3) padrão, que divide a largura em partes
-/// iguais entre TODOS os itens e fica ilegível/cortado com muitas abas
-/// visíveis ao mesmo tempo (11 branches possíveis no shell principal,
-/// achado real 2026-07-27). Cada item usa só a largura que precisa
-/// (mínimo [_larguraItem]) e a barra rola se não couber tudo. Seleção
-/// marcada preenchendo o retângulo inteiro do item (quadrado sólido),
-/// não o indicador "pill" pequeno flutuante do `NavigationBar` padrão.
-class ScrollableBottomNavBar extends StatefulWidget {
-  const ScrollableBottomNavBar({
-    super.key,
-    required this.items,
-    required this.currentIndex,
-    required this.onIndexChanged,
-    this.leading,
-    double? barHeight,
-    double? iconPadding,
-    double? labelGap,
-    double? labelFontSize,
-  }) : barHeight = barHeight ?? _alturaBarraDefault,
-       iconPadding = iconPadding ?? _iconPaddingDefault,
-       labelGap = labelGap ?? _labelGapDefault,
-       labelFontSize = labelFontSize ?? _labelFontSizeDefault;
-
-  final List<AdaptiveNavigationItem> items;
-  final int currentIndex;
-  final ValueChanged<int> onIndexChanged;
-
-  /// Conteúdo extra fixo ANTES dos itens (2026-08-14) - mesma altura
-  /// da barra ([barHeight]), largura tipo [_larguraItem]. `null`
-  /// (default) não muda nada do layout existente.
-  final Widget? leading;
-
-  /// Altura total da barra - default [_alturaBarraDefault]. Reduzir
-  /// diminui proporcionalmente o espaço em branco acima do ícone/abaixo
-  /// do label (o conteúdo é centralizado verticalmente dentro da altura
-  /// total).
-  final double barHeight;
-
-  /// Padding vertical do "pill" ao redor do ícone - default
-  /// [_iconPaddingDefault]. Reduzir aproxima o ícone das bordas
-  /// superior/inferior do item.
-  final double iconPadding;
-
-  /// Espaço entre ícone e label - default [_labelGapDefault].
-  final double labelGap;
-
-  /// Tamanho da fonte do label - default [_labelFontSizeDefault].
-  final double labelFontSize;
-
-  static const double _labelFontSizeDefault = 11;
-  static const double _alturaBarraDefault = 64;
-  static const double _iconPaddingDefault = 4;
-  static const double _labelGapDefault = 4;
-  static const double _larguraItem = 84;
-
-  /// Largura mínima pra caber ícone sozinho (sem texto) - abaixo disso nem
-  /// ícone-só cabe pra todo mundo, aí sim rola.
-  static const double _larguraItemSoIcone = 48;
-
-  @override
-  State<ScrollableBottomNavBar> createState() => _ScrollableBottomNavBarState();
-}
-
-class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
-  final _scrollController = ScrollController();
-
-  @override
-  void didUpdateWidget(covariant ScrollableBottomNavBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.currentIndex != widget.currentIndex) {
-      _rolarParaSelecionado();
-    }
-  }
-
-  /// Rola o item selecionado pra dentro da área visível - achado real
-  /// (2026-07-27): mesmo com o drag de mouse liberado, se o item ativo
-  /// começar fora da tela o usuário não tem pista nenhuma de que a barra
-  /// rola, parece só "sumiu".
-  void _rolarParaSelecionado() {
-    if (!_scrollController.hasClients) return;
-    final alvo = (widget.currentIndex * ScrollableBottomNavBar._larguraItem)
-        .clamp(0.0, _scrollController.position.maxScrollExtent);
-    _scrollController.animateTo(
-      alvo,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-    );
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: theme.colorScheme.surfaceContainer,
-      elevation: 3,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: widget.barHeight,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final n = widget.items.length;
-              // Largura do `leading` reservada ANTES de dividir entre os
-              // itens (2026-08-14) - senão ele "roubaria" espaço que os
-              // cálculos abaixo assumem ser só dos itens.
-              final larguraLeading = widget.leading != null
-                  ? ScrollableBottomNavBar._larguraItem
-                  : 0.0;
-              final larguraDisponivel = (constraints.maxWidth - larguraLeading)
-                  .clamp(0.0, double.infinity);
-              final larguraPorItem = n == 0
-                  ? larguraDisponivel
-                  : larguraDisponivel / n;
-
-              // Cabe tudo com texto - estica preenchendo a tela (achado
-              // real, 2026-07-27: pedido do usuário pra não ficar sempre
-              // no modo compacto/rolável quando sobra espaço de verdade).
-              if (larguraPorItem >= ScrollableBottomNavBar._larguraItem) {
-                return Row(
-                  children: [
-                    if (widget.leading != null) _buildLeading(),
-                    for (var i = 0; i < n; i++)
-                      Expanded(
-                        child: _buildItem(
-                          context,
-                          widget.items[i],
-                          i == widget.currentIndex,
-                          () => widget.onIndexChanged(i),
-                          mostrarTexto: true,
-                        ),
-                      ),
-                  ],
-                );
-              }
-
-              // Não cabe com texto, mas cabe só ícone - tira o texto e
-              // ainda estica preenchendo a tela, sem precisar rolar.
-              if (larguraPorItem >=
-                  ScrollableBottomNavBar._larguraItemSoIcone) {
-                return Row(
-                  children: [
-                    if (widget.leading != null) _buildLeading(),
-                    for (var i = 0; i < n; i++)
-                      Expanded(
-                        child: _buildItem(
-                          context,
-                          widget.items[i],
-                          i == widget.currentIndex,
-                          () => widget.onIndexChanged(i),
-                          mostrarTexto: false,
-                        ),
-                      ),
-                  ],
-                );
-              }
-
-              // Nem ícone-só cabe pra todo mundo - último recurso, rola.
-              // `Listener` captura o scroll da RODA do mouse (vertical por
-              // natureza) e redireciona pro eixo horizontal - achado real
-              // (2026-07-27): `dragDevices`/`ScrollConfiguration` só libera
-              // arrastar clicando, não a rodinha; sem isso a rodinha do
-              // mouse simplesmente não faz nada numa `ListView`/
-              // `SingleChildScrollView` horizontal.
-              // `leading` fica FORA do `SingleChildScrollView` (fixo, não
-              // rola junto com os itens) - `Expanded` só na parte rolável.
-              return Row(
-                children: [
-                  if (widget.leading != null) _buildLeading(),
-                  Expanded(
-                    child: Listener(
-                      onPointerSignal: (event) {
-                        if (event is! PointerScrollEvent) return;
-                        if (!_scrollController.hasClients) return;
-                        final alvo =
-                            (_scrollController.offset + event.scrollDelta.dy)
-                                .clamp(
-                                  0.0,
-                                  _scrollController.position.maxScrollExtent,
-                                );
-                        _scrollController.jumpTo(alvo);
-                      },
-                      child: ScrollConfiguration(
-                        behavior: _MouseDragScrollBehavior(),
-                        child: SingleChildScrollView(
-                          controller: _scrollController,
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              for (var i = 0; i < n; i++)
-                                SizedBox(
-                                  width: ScrollableBottomNavBar._larguraItem,
-                                  child: _buildItem(
-                                    context,
-                                    widget.items[i],
-                                    i == widget.currentIndex,
-                                    () => widget.onIndexChanged(i),
-                                    mostrarTexto: true,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLeading() => SizedBox(
-    width: ScrollableBottomNavBar._larguraItem,
-    height: widget.barHeight,
-    child: widget.leading,
-  );
-
-  Widget _buildItem(
-    BuildContext context,
-    AdaptiveNavigationItem item,
-    bool selecionado,
-    VoidCallback onTap, {
-    required bool mostrarTexto,
-  }) {
-    final theme = Theme.of(context);
-    final corConteudo = selecionado
-        ? theme.colorScheme.onSecondaryContainer
-        : theme.colorScheme.onSurfaceVariant;
-
-    // Sem `width` fixo aqui - quem chama decide: `Expanded` (modo
-    // esticado, cabe tudo) preenche o espaço disponível sozinho; modo
-    // rolável (abaixo) envolve com `SizedBox(width: _larguraItem)`.
-    //
-    // Indicador "pill" ao redor só do ícone (achado real, 2026-07-27,
-    // pedido do usuário: horizontal era quadrado sólido preenchendo o item
-    // inteiro, vertical (`NavigationRail`, `useIndicator: true`) já usava o
-    // "pill" padrão Material 3 - inconsistente entre os 2. Padronizado
-    // pro mesmo visual do Rail.
-    final conteudo = SizedBox(
-      height: widget.barHeight,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: widget.iconPadding),
-            decoration: BoxDecoration(
-              color: selecionado
-                  ? theme.colorScheme.secondaryContainer
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: _iconeDoItem(item, cor: corConteudo),
-          ),
-          if (mostrarTexto) ...[
-            SizedBox(height: widget.labelGap),
-            Text(
-              item.label,
-              style: TextStyle(fontSize: widget.labelFontSize, color: corConteudo),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ],
-      ),
-    );
-
-    // Tooltip (hover no desktop/web, long-press no touch) - mais importante
-    // ainda quando `mostrarTexto: false` (modo compacto ícone-só), mas
-    // ajuda em qualquer modo.
-    return Tooltip(
-      message: item.label,
-      child: InkWell(onTap: onTap, child: conteudo),
     );
   }
 }

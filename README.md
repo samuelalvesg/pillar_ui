@@ -34,6 +34,26 @@ mais de um app.
 - **`DeferredWidget`** - wrapper pra carregamento tardio de telas
   pesadas (`deferred as`), reduz o bundle inicial.
 
+## Acessibilidade e teclado
+
+- O destino ativo é indicado só pela cor (ativo `onSurface`, inativo cinza), sem pílula; o leitor de tela recebe `selected`.
+- `Tab` percorre a barra inferior ou o rail, as setas movem o foco entre os destinos, `Enter` e `Espaço` ativam; o anel de foco aparece só na navegação por teclado.
+- `Ctrl+Tab` e `Ctrl+Shift+Tab` ciclam os destinos; `Alt+1` a `Alt+9` (ou `Ctrl+1` a `Ctrl+9` com `shortcutModifier: NavigationShortcutModifier.control`) pulam direto. `enableKeyboardShortcuts: false` desliga. O padrão é `Alt` porque os navegadores reservam `Ctrl+número`.
+- Textos de tooltip e de ação (`toggleTooltip` do drawer, `retryLabel` do erro) vêm do app: o pacote não fixa idioma.
+- Com "reduzir movimento" ligado no sistema, as transições viram corte seco.
+
+## Consumidores e o que muda na 0.1.0-alpha.2
+
+Conferido em 2026-11-22 rodando os testes de cada consumidor contra esta versão (por `dependency_overrides` local, sem mexer nos repos):
+
+| Consumidor | API que usa | Resultado |
+|---|---|---|
+| Symmetris-frontend (`pillar_home`, `pillar_auth`, `symmetris_shell`) | `ShellNavigationScaffold` com `navBarHeight`/`navLabelFontSize`/`navRailMinWidth`, `AdaptiveNavigationItem`, `ErrorContainerWidget`, `AppTheme.light()/dark()` | 97 + 68 + 6 testes passam |
+| sound_mixer_ui | `AdaptiveNavigationScaffold` com `highlightIndex: -1`, `navLeading`, `hideAppBar`, `titleWidget` | 232 passam; 4 já falhavam antes (mesmas 4 com a versão fixada no lock) |
+| Bible With Me | `ShellNavigationScaffold` com `bottomBarVisible`, `shortcutModifier: control` | suíte inteira passa |
+
+O que o consumidor percebe ao atualizar: rail a partir de 600 dp de largura (tablet em retrato passa a ter rail), seleção só por cor, aba do drawer de 48 dp, tema claro sem o fundo cinza e atalhos de teclado ligados (`enableKeyboardShortcuts: false` desliga). Quem importava `AppTextTheme.textTheme` precisa migrar para `AppTextTheme.build`.
+
 ## Uso
 
 Dependência git (sem publicação no pub.dev ainda):
@@ -43,7 +63,7 @@ dependencies:
   pillar_ui:
     git:
       url: https://github.com/samuelalvesg/pillar_ui.git
-      ref: v0.1.0-alpha.1   # tag SemVer (ver CHANGELOG.md); evite `main`, o pubspec.lock do app fixa o commit e fica velho
+      ref: v0.1.0-alpha.2   # tag SemVer (ver CHANGELOG.md); evite `main`, o pubspec.lock do app fixa o commit e fica velho
 ```
 
 ```dart
