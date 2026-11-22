@@ -97,6 +97,16 @@ class _NavShortcuts extends StatelessWidget {
   }
 }
 
+/// Active destinations use `onSurface` (white on dark, black on light);
+/// inactive ones a grey: `onSurface` blended 68% over the bar surface, which
+/// keeps at least 4.5:1 against it and stays visibly dimmer than the active one.
+Color _corDoItem(ColorScheme scheme, bool selecionado) => selecionado
+    ? scheme.onSurface
+    : Color.alphaBlend(
+        scheme.onSurface.withValues(alpha: 0.68),
+        scheme.surfaceContainer,
+      );
+
 bool _showRail(BuildContext context, double breakpoint) =>
     MediaQuery.sizeOf(context).width >= breakpoint;
 
@@ -354,8 +364,19 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
                   ? NavigationRailLabelType.none
                   : NavigationRailLabelType.all,
               // Ativa o visual Material 3 no Rail
-              useIndicator: true,
-              indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
+              useIndicator: false,
+              selectedIconTheme: IconThemeData(
+                color: _corDoItem(Theme.of(context).colorScheme, true),
+              ),
+              unselectedIconTheme: IconThemeData(
+                color: _corDoItem(Theme.of(context).colorScheme, false),
+              ),
+              selectedLabelTextStyle: TextStyle(
+                color: _corDoItem(Theme.of(context).colorScheme, true),
+              ),
+              unselectedLabelTextStyle: TextStyle(
+                color: _corDoItem(Theme.of(context).colorScheme, false),
+              ),
               destinations: items
                   .map(
                     (item) => NavigationRailDestination(
@@ -521,10 +542,31 @@ class ShellNavigationScaffold extends StatelessWidget {
                                         )
                                         ? NavigationRailLabelType.none
                                         : NavigationRailLabelType.all,
-                                    useIndicator: true,
-                                    indicatorColor: Theme.of(
-                                      context,
-                                    ).colorScheme.secondaryContainer,
+                                    useIndicator: false,
+                                    selectedIconTheme: IconThemeData(
+                                      color: _corDoItem(
+                                        Theme.of(context).colorScheme,
+                                        true,
+                                      ),
+                                    ),
+                                    unselectedIconTheme: IconThemeData(
+                                      color: _corDoItem(
+                                        Theme.of(context).colorScheme,
+                                        false,
+                                      ),
+                                    ),
+                                    selectedLabelTextStyle: TextStyle(
+                                      color: _corDoItem(
+                                        Theme.of(context).colorScheme,
+                                        true,
+                                      ),
+                                    ),
+                                    unselectedLabelTextStyle: TextStyle(
+                                      color: _corDoItem(
+                                        Theme.of(context).colorScheme,
+                                        false,
+                                      ),
+                                    ),
                                     destinations: items
                                         .map(
                                           (item) => NavigationRailDestination(
@@ -840,51 +882,41 @@ class _ScrollableBottomNavBarState extends State<ScrollableBottomNavBar> {
     required bool mostrarTexto,
   }) {
     final theme = Theme.of(context);
-    final corConteudo = selecionado
-        ? theme.colorScheme.onSecondaryContainer
-        : theme.colorScheme.onSurfaceVariant;
+    final corConteudo = _corDoItem(theme.colorScheme, selecionado);
 
     // Sem `width` fixo aqui - quem chama decide: `Expanded` (modo
     // esticado, cabe tudo) preenche o espaço disponível sozinho; modo
     // rolável (abaixo) envolve com `SizedBox(width: _larguraItem)`.
     //
-    // Indicador "pill" ao redor só do ícone (achado real, 2026-07-27,
-    // pedido do usuário: horizontal era quadrado sólido preenchendo o item
-    // inteiro, vertical (`NavigationRail`, `useIndicator: true`) já usava o
-    // "pill" padrão Material 3 - inconsistente entre os 2. Padronizado
-    // pro mesmo visual do Rail.
-    final conteudo = SizedBox(
-      height: _altura,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedContainer(
-            duration: AppMotion.duration(context, AppMotion.short),
-            padding: EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: widget.iconPadding,
-            ),
-            decoration: BoxDecoration(
-              color: selecionado
-                  ? theme.colorScheme.secondaryContainer
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: _iconeDoItem(item, cor: corConteudo),
-          ),
-          if (mostrarTexto) ...[
-            SizedBox(height: widget.labelGap),
-            Text(
-              item.label,
-              style: TextStyle(
-                fontSize: widget.labelFontSize,
-                color: corConteudo,
+    // A seleção é só de cor (ícone e rótulo), sem fundo: ativo em
+    // `onSurface`, inativo em `onSurfaceVariant`. O estado também vai para o
+    // leitor de tela (`Semantics.selected`), pois cor sozinha não basta.
+    final conteudo = TweenAnimationBuilder<Color?>(
+      tween: ColorTween(end: corConteudo),
+      duration: AppMotion.duration(context, AppMotion.short),
+      builder: (context, cor, _) => SizedBox(
+        height: _altura,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: widget.iconPadding,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              child: _iconeDoItem(item, cor: cor),
             ),
+            if (mostrarTexto) ...[
+              SizedBox(height: widget.labelGap),
+              Text(
+                item.label,
+                style: TextStyle(fontSize: widget.labelFontSize, color: cor),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
 

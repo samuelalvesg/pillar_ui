@@ -10,6 +10,7 @@ Revisão de UI/UX e acessibilidade (`docs/ui-ux-review.md`).
 * `ErrorContainerWidget`: texto e ícone em `onErrorContainer`, estilo `bodySmall` do tema, região viva para leitor de tela.
 * `CollapsibleEdgeDrawer`: aba de 48 dp (era 40) e ícone de 20.
 * A barra inferior cresce com a escala de fonte do usuário.
+* O destino ativo deixa de ter a pílula: a seleção é só cor, ícone e rótulo em `onSurface` (branco no escuro, preto no claro) e os inativos num cinza (`onSurface` a 68% sobre a superfície, contraste ≥ 4,5:1). O rail também (`useIndicator: false`). O estado continua no leitor de tela (`selected`).
 
 **Novo (aditivo)**
 

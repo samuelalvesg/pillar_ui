@@ -267,6 +267,71 @@ void main() {
       );
     });
 
+    for (final theme in [AppTheme.light(), AppTheme.dark()]) {
+      final mode = theme.colorScheme.brightness.name;
+
+      testWidgets('selection is icon color only, bar ($mode)', (tester) async {
+        _size(tester, const Size(400, 800));
+        await tester.pumpWidget(_app(_scaffold(index: 1), theme: theme));
+        await tester.pumpAndSettle();
+        final scheme = theme.colorScheme;
+        Color? colorOf(IconData icon) => tester
+            .widget<Icon>(
+              find.descendant(
+                of: find.byType(ScrollableBottomNavBar),
+                matching: find.byIcon(icon),
+              ),
+            )
+            .color;
+        expect(colorOf(Icons.search), scheme.onSurface);
+        expect(colorOf(Icons.home), isNot(scheme.onSurface));
+        expect(
+          colorOf(Icons.home),
+          Color.alphaBlend(
+            scheme.onSurface.withValues(alpha: 0.68),
+            scheme.surfaceContainer,
+          ),
+        );
+        final hasFill = find.descendant(
+          of: find.byType(ScrollableBottomNavBar),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is DecoratedBox &&
+                (w.decoration as dynamic) is BoxDecoration &&
+                (w.decoration as BoxDecoration).color ==
+                    scheme.secondaryContainer,
+          ),
+        );
+        expect(hasFill, findsNothing);
+      });
+
+      testWidgets('selection is icon color only, rail ($mode)', (tester) async {
+        _size(tester, const Size(900, 600));
+        await tester.pumpWidget(_app(_scaffold(index: 1), theme: theme));
+        await tester.pumpAndSettle();
+        final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+        expect(rail.useIndicator, isFalse);
+        expect(rail.selectedIconTheme?.color, theme.colorScheme.onSurface);
+        expect(
+          rail.unselectedIconTheme?.color,
+          isNot(theme.colorScheme.onSurface),
+        );
+      });
+
+      test('inactive grey is legible and dimmer than active ($mode)', () {
+        final c = theme.colorScheme;
+        final inactive = Color.alphaBlend(
+          c.onSurface.withValues(alpha: 0.68),
+          c.surfaceContainer,
+        );
+        expect(
+          _contrast(inactive, c.surfaceContainer),
+          greaterThanOrEqualTo(4.5),
+        );
+        expect(_contrast(c.onSurface, inactive), greaterThanOrEqualTo(1.5));
+      });
+    }
+
     testWidgets('bottom bar item announces selected and a name', (
       tester,
     ) async {

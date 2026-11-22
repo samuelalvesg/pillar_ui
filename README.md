@@ -36,6 +36,7 @@ mais de um app.
 
 ## Acessibilidade e teclado
 
+- O destino ativo é indicado só pela cor (ativo `onSurface`, inativo cinza), sem pílula; o leitor de tela recebe `selected`.
 - `Tab` percorre a barra inferior ou o rail, as setas movem o foco entre os destinos, `Enter` e `Espaço` ativam; o anel de foco aparece só na navegação por teclado.
 - `Alt+1` a `Alt+9` selecionam os nove primeiros destinos (`enableKeyboardShortcuts: false` desliga). `Alt`, e não `Ctrl`, porque os navegadores reservam `Ctrl+número`.
 - Textos de tooltip e de ação (`toggleTooltip` do drawer, `retryLabel` do erro) vêm do app: o pacote não fixa idioma.
@@ -50,7 +51,7 @@ dependencies:
   pillar_ui:
     git:
       url: https://github.com/samuelalvesg/pillar_ui.git
-      ref: v0.1.0-alpha.1   # tag SemVer (ver CHANGELOG.md); evite `main`, o pubspec.lock do app fixa o commit e fica velho
+      ref: v0.1.0-alpha.2   # tag SemVer (ver CHANGELOG.md); evite `main`, o pubspec.lock do app fixa o commit e fica velho
 ```
 
 ```dart
