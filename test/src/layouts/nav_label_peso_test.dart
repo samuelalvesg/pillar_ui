@@ -55,8 +55,8 @@ void main() {
       expect(estiloRotuloDoRail(10).fontSize, 10);
     });
 
-    test('sem tamanho, mantém o padrão do Material (só fixa o peso)', () {
-      expect(estiloRotuloDoRail(null).fontSize, isNull);
+    test('sem tamanho, usa o mesmo padrão da barra inferior', () {
+      expect(estiloRotuloDoRail(null).fontSize, kNavLabelFontSizeDefault);
       expect(estiloRotuloDoRail(null).fontWeight, FontWeight.w400);
     });
   });
@@ -66,6 +66,21 @@ void main() {
     ('ShellNavigationScaffold', _shell),
   ]) {
     group(nome, () {
+      testWidgets('sem tamanho informado, rail e barra inferior desenham o mesmo tamanho de rótulo', (tester) async {
+        _tela(tester, const Size(400, 800));
+        await tester.pumpWidget(montar());
+        await tester.pumpAndSettle();
+        final barra = _desenhado(tester, 'Início');
+
+        _tela(tester, const Size(800, 400));
+        await tester.pumpWidget(montar());
+        await tester.pumpAndSettle();
+        final rail = _desenhado(tester, 'Início');
+
+        expect(rail.tamanho, barra.tamanho);
+        expect(rail.tamanho, kNavLabelFontSizeDefault);
+      });
+
       testWidgets('rótulo do rail (vertical) tem o mesmo peso e tamanho do da barra inferior', (tester) async {
         _tela(tester, const Size(400, 800)); // portrait: barra inferior
         await tester.pumpWidget(montar(fontSize: 10));

@@ -69,7 +69,7 @@ class ScrollableBottomNavBar extends StatefulWidget {
   /// Tamanho da fonte do label - default [_labelFontSizeDefault].
   final double labelFontSize;
 
-  static const double _labelFontSizeDefault = 11;
+  static const double _labelFontSizeDefault = kNavLabelFontSizeDefault;
   static const double _alturaBarraDefault = 64;
   static const double _iconPaddingDefault = 4;
   static const double _labelGapDefault = 4;

@@ -8,9 +8,15 @@ import 'package:material_ui/material_ui.dart';
 /// aparência de negrito enquanto a barra horizontal não (achado do usuário, 2026-09-25). Fixar o peso
 /// aqui - numa função só, usada pelos dois scaffolds - mantém as duas barras iguais.
 ///
-/// [fontSize] `null` mantém o tamanho padrão do Material.
-TextStyle estiloRotuloDoRail(double? fontSize) =>
-    TextStyle(fontSize: fontSize, fontWeight: FontWeight.w400);
+/// [fontSize] `null` usa [kNavLabelFontSizeDefault], o mesmo da barra inferior
+/// (o padrão do Material, 12, deixava o rail com rótulo maior).
+TextStyle estiloRotuloDoRail(double? fontSize) => TextStyle(
+  fontSize: fontSize ?? kNavLabelFontSizeDefault,
+  fontWeight: FontWeight.w400,
+);
+
+/// Label size shared by the bottom bar and the rail.
+const double kNavLabelFontSizeDefault = 11;
 
 /// Active destinations use `onSurface` (white on dark, black on light);
 /// inactive ones a grey: `onSurface` blended 68% over the bar surface, which
