@@ -156,49 +156,51 @@ class AdaptiveNavigationScaffold extends StatelessWidget {
   /// item ativo em nenhum momento da transição.
   @override
   Widget build(BuildContext context) {
-    final showRail = showNavRail(context, railBreakpoint);
     final highlight = highlightIndex ?? currentIndex;
     final dur = AppMotion.duration(context, AppMotion.long);
 
-    return NavShortcuts(
-      enabled: enableKeyboardShortcuts,
-      modifier: shortcutModifier,
-      currentIndex: currentIndex,
-      itemCount: items.length,
-      onIndexChanged: onIndexChanged,
-      child: Scaffold(
-        appBar: _buildAppBar(),
-        body: NavBody(
-          showRail: showRail,
-          duration: dur,
-          rail: NavRail(
-            items: items,
-            selectedIndex: highlight,
-            onSelected: onIndexChanged,
-            extendedBreakpoint: extendedRailBreakpoint,
-            leading: navLeading,
-            minWidth: navRailMinWidth,
-            labelMaxWidth: navRailLabelMaxWidth,
-            labelFontSize: navLabelFontSize,
+    return NavLayout(
+      breakpoint: railBreakpoint,
+      builder: (context, showRail) => NavShortcuts(
+        enabled: enableKeyboardShortcuts,
+        modifier: shortcutModifier,
+        currentIndex: currentIndex,
+        itemCount: items.length,
+        onIndexChanged: onIndexChanged,
+        child: Scaffold(
+          appBar: _buildAppBar(),
+          body: NavBody(
+            showRail: showRail,
+            duration: dur,
+            rail: NavRail(
+              items: items,
+              selectedIndex: highlight,
+              onSelected: onIndexChanged,
+              extendedBreakpoint: extendedRailBreakpoint,
+              leading: navLeading,
+              minWidth: navRailMinWidth,
+              labelMaxWidth: navRailLabelMaxWidth,
+              labelFontSize: navLabelFontSize,
+            ),
+            content: _buildAnimatedContent(context),
           ),
-          content: _buildAnimatedContent(context),
-        ),
-        bottomNavigationBar: BottomBarSlot(
-          showRail: showRail,
-          visible: bottomBarVisible,
-          duration: dur,
-          bar: ScrollableBottomNavBar(
-            items: items,
-            currentIndex: highlight,
-            onIndexChanged: onIndexChanged,
-            leading: navLeading,
-            barHeight: navBarHeight,
-            iconPadding: navBarIconPadding,
-            labelGap: navBarLabelGap,
-            labelFontSize: navLabelFontSize,
+          bottomNavigationBar: BottomBarSlot(
+            showRail: showRail,
+            visible: bottomBarVisible,
+            duration: dur,
+            bar: ScrollableBottomNavBar(
+              items: items,
+              currentIndex: highlight,
+              onIndexChanged: onIndexChanged,
+              leading: navLeading,
+              barHeight: navBarHeight,
+              iconPadding: navBarIconPadding,
+              labelGap: navBarLabelGap,
+              labelFontSize: navLabelFontSize,
+            ),
           ),
+          floatingActionButton: floatingActionButton,
         ),
-        floatingActionButton: floatingActionButton,
       ),
     );
   }

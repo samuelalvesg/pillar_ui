@@ -64,44 +64,46 @@ class ShellNavigationScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showRail = showNavRail(context, railBreakpoint);
     final dur = AppMotion.duration(context, AppMotion.medium);
 
     // `navigationShell` (the router's navigator) is mounted once, always:
     // only the chrome around it animates. See [NavBody].
-    return NavShortcuts(
-      enabled: enableKeyboardShortcuts,
-      modifier: shortcutModifier,
-      currentIndex: currentIndex,
-      itemCount: items.length,
-      onIndexChanged: onIndexChanged,
-      child: Scaffold(
-        body: NavBody(
-          showRail: showRail,
-          duration: dur,
-          rail: NavRail(
-            items: items,
-            selectedIndex: currentIndex,
-            onSelected: onIndexChanged,
-            extendedBreakpoint: extendedRailBreakpoint,
-            minWidth: navRailMinWidth,
-            labelMaxWidth: navRailLabelMaxWidth,
-            labelFontSize: navLabelFontSize,
+    return NavLayout(
+      breakpoint: railBreakpoint,
+      builder: (context, showRail) => NavShortcuts(
+        enabled: enableKeyboardShortcuts,
+        modifier: shortcutModifier,
+        currentIndex: currentIndex,
+        itemCount: items.length,
+        onIndexChanged: onIndexChanged,
+        child: Scaffold(
+          body: NavBody(
+            showRail: showRail,
+            duration: dur,
+            rail: NavRail(
+              items: items,
+              selectedIndex: currentIndex,
+              onSelected: onIndexChanged,
+              extendedBreakpoint: extendedRailBreakpoint,
+              minWidth: navRailMinWidth,
+              labelMaxWidth: navRailLabelMaxWidth,
+              labelFontSize: navLabelFontSize,
+            ),
+            content: navigationShell,
           ),
-          content: navigationShell,
-        ),
-        bottomNavigationBar: BottomBarSlot(
-          showRail: showRail,
-          visible: bottomBarVisible,
-          duration: dur,
-          bar: ScrollableBottomNavBar(
-            items: items,
-            currentIndex: currentIndex,
-            onIndexChanged: onIndexChanged,
-            barHeight: navBarHeight,
-            iconPadding: navBarIconPadding,
-            labelGap: navBarLabelGap,
-            labelFontSize: navLabelFontSize,
+          bottomNavigationBar: BottomBarSlot(
+            showRail: showRail,
+            visible: bottomBarVisible,
+            duration: dur,
+            bar: ScrollableBottomNavBar(
+              items: items,
+              currentIndex: currentIndex,
+              onIndexChanged: onIndexChanged,
+              barHeight: navBarHeight,
+              iconPadding: navBarIconPadding,
+              labelGap: navBarLabelGap,
+              labelFontSize: navLabelFontSize,
+            ),
           ),
         ),
       ),

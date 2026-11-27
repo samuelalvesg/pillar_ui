@@ -254,8 +254,64 @@ void main() {
       expect(find.byType(NavigationRail), findsOneWidget);
       expect(find.byType(ScrollableBottomNavBar), findsNothing);
 
-      _size(tester, const Size(500, 300));
+      _size(tester, const Size(420, 300));
       await tester.pumpWidget(_app(_scaffold()));
+      await tester.pumpAndSettle();
+      expect(find.byType(NavigationRail), findsNothing);
+      expect(find.byType(ScrollableBottomNavBar), findsOneWidget);
+    });
+
+    testWidgets(
+      'a phone held sideways (500x300) gets the rail to save height',
+      (tester) async {
+        _size(tester, const Size(500, 300));
+        await tester.pumpWidget(_app(_scaffold()));
+        await tester.pumpAndSettle();
+        expect(find.byType(NavigationRail), findsOneWidget);
+        expect(find.byType(ScrollableBottomNavBar), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'hysteresis: the rail survives a small shrink, a fresh layout does not use it',
+      (tester) async {
+        _size(tester, const Size(700, 900));
+        await tester.pumpWidget(_app(_scaffold()));
+        await tester.pumpAndSettle();
+        expect(find.byType(NavigationRail), findsOneWidget);
+
+        _size(tester, const Size(590, 900));
+        await tester.pumpWidget(_app(_scaffold()));
+        await tester.pumpAndSettle();
+        expect(
+          find.byType(NavigationRail),
+          findsOneWidget,
+          reason: '590 is inside the 20 dp band',
+        );
+
+        _size(tester, const Size(570, 900));
+        await tester.pumpWidget(_app(_scaffold()));
+        await tester.pumpAndSettle();
+        expect(find.byType(NavigationRail), findsNothing);
+
+        _size(tester, const Size(590, 900));
+        await tester.pumpWidget(_app(_scaffold()));
+        await tester.pumpAndSettle();
+        expect(
+          find.byType(NavigationRail),
+          findsNothing,
+          reason: 'back up needs the full 600',
+        );
+      },
+    );
+
+    testWidgets('measures the space it has, not the window', (tester) async {
+      _size(tester, const Size(1000, 900));
+      await tester.pumpWidget(
+        _app(
+          Center(child: SizedBox(width: 500, height: 900, child: _scaffold())),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.byType(NavigationRail), findsNothing);
       expect(find.byType(ScrollableBottomNavBar), findsOneWidget);
